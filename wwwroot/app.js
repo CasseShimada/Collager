@@ -4,10 +4,7 @@ const thumbStrip = document.querySelector("#thumbStrip");
 const settingsForm = document.querySelector("#settingsForm");
 const generateButton = document.querySelector("#generateButton");
 const clearButton = document.querySelector("#clearButton");
-const statusTitle = document.querySelector("#statusTitle");
-const statusText = document.querySelector("#statusText");
 const emptyState = document.querySelector("#emptyState");
-const downloadLink = document.querySelector("#downloadLink");
 const templateGrid = document.querySelector("#templateGrid");
 const templateInput = document.querySelector("#templateInput");
 const templateCountLabel = document.querySelector("#templateCountLabel");
@@ -150,14 +147,13 @@ const templates = {
 };
 
 let selectedFiles = [];
-let previewUrl = null;
 let currentLayout = [];
 let previewZoom = 1;
 let fitPreviewZoom = 1;
 let isPreviewZoomManual = false;
 let dragState = null;
 let renderTimer = null;
-let exportTimer = null;
+let buttonMessageTimer = null;
 const longPressMs = 450;
 const minPreviewZoom = 0.12;
 const maxPreviewZoom = 2.5;
@@ -340,15 +336,10 @@ function updateSelectionState(skippedDuplicates = 0, skippedLimit = 0) {
 }
 
 function updateSelectionStatus(skippedDuplicates = 0, skippedLimit = 0) {
-  statusTitle.textContent = selectedFiles.length ? `已选择 ${selectedFiles.length} 张` : "等待图片";
-  if (!selectedFiles.length) {
-    statusText.textContent = "选择图片后生成预览";
-  } else if (skippedLimit > 0) {
-    statusText.textContent = `最多支持 31 张，已忽略 ${skippedLimit} 张`;
+  if (skippedLimit > 0) {
+    showGenerateButtonMessage(`已忽略 ${skippedLimit} 张`);
   } else if (skippedDuplicates > 0) {
-    statusText.textContent = `已跳过 ${skippedDuplicates} 张重复图片`;
-  } else {
-    statusText.textContent = "可选择模板，或使用自动网格排版";
+    showGenerateButtonMessage(`跳过 ${skippedDuplicates} 张重复图片`);
   }
 }
 
@@ -458,15 +449,13 @@ function createTemplatePreview(item) {
 
 async function generateCollage() {
   if (selectedFiles.length === 0) {
-    statusTitle.textContent = "没有图片";
-    statusText.textContent = "请先选择至少一张图片";
+    showGenerateButtonMessage("请先选择图片");
     return;
   }
 
   renderTemplates();
-
   renderEditablePreview();
-  await refreshExport();
+  await exportAndDownload();
 }
 
 function renderEditablePreview() {
@@ -518,8 +507,6 @@ function renderEditablePreview() {
     editableCollage.appendChild(tile);
   });
 
-  statusTitle.textContent = "可编辑预览";
-  statusText.textContent = "空白处滚轮缩放预览，格子上滚轮缩放图片";
 }
 
 function getPreviewScale(settings) {
@@ -727,15 +714,12 @@ function endTileDrag(event) {
     selectedFiles[sourceIndex].scale = dragState.scale;
     swapFiles(sourceIndex, targetIndex);
     renderEditablePreview();
-    statusTitle.textContent = "已置换图片";
-    statusText.textContent = `第 ${sourceIndex + 1} 张与第 ${targetIndex + 1} 张已交换`;
+    showGenerateButtonMessage("已交换图片");
   } else if (dragState.moved) {
-    statusTitle.textContent = "已移动图片";
-    statusText.textContent = "裁剪位置会用于最终下载";
+    showGenerateButtonMessage("已调整裁剪");
   }
 
   dragState = null;
-  scheduleExportRefresh();
 }
 
 function cancelTileDrag(event) {
@@ -771,8 +755,7 @@ function enterSwapMode(tile) {
 
   dragState.swapMode = true;
   tile.classList.add("is-swap-source");
-  statusTitle.textContent = "交换图片";
-  statusText.textContent = "拖到另一格后松开即可交换";
+  showGenerateButtonMessage("拖到另一格交换");
   updateSwapHover(dragState.lastX, dragState.lastY, dragState.index);
 }
 
@@ -812,9 +795,7 @@ function zoomTileImage(event, index) {
   }
 
   applyImagePlacement(image, item, rect);
-  statusTitle.textContent = "已缩放图片";
-  statusText.textContent = `当前缩放 ${Math.round(item.scale * 100)}%`;
-  scheduleExportRefresh();
+  showGenerateButtonMessage(`${Math.round(item.scale * 100)}%`);
 }
 
 function applyImagePlacement(image, item, rect) {
@@ -859,23 +840,16 @@ function schedulePreviewRender() {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     renderEditablePreview();
-    scheduleExportRefresh();
   }, 120);
 }
 
-function scheduleExportRefresh() {
-  clearTimeout(exportTimer);
-  exportTimer = setTimeout(refreshExport, 350);
-}
-
-async function refreshExport() {
+async function exportAndDownload() {
   if (selectedFiles.length === 0) {
     return;
   }
 
   generateButton.disabled = true;
-  generateButton.textContent = "导出中...";
-  downloadLink.classList.add("is-disabled");
+  generateButton.textContent = "生成中...";
 
   const formData = new FormData(settingsForm);
   const templateItem = getSelectedTemplate();
@@ -909,24 +883,60 @@ async function refreshExport() {
     }
 
     const blob = await response.blob();
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-
-    previewUrl = URL.createObjectURL(blob);
-    downloadLink.href = previewUrl;
-    downloadLink.classList.remove("is-disabled");
-    statusTitle.textContent = "拼图已生成";
-    statusText.textContent = "可继续拖动调整，下载会同步更新";
+    downloadBlob(blob);
+    showGenerateButtonMessage("已开始下载");
   } catch (error) {
-    statusTitle.textContent = "生成失败";
-    statusText.textContent = error.message === "Failed to fetch"
+    showGenerateButtonMessage("生成失败");
+    console.error(error.message === "Failed to fetch"
       ? "图片数据较大或服务暂时不可用，请稍后重试。"
-      : error.message;
+      : error.message);
   } finally {
     generateButton.disabled = false;
-    generateButton.textContent = "生成拼图";
+    resetGenerateButtonTextLater();
   }
+}
+
+function downloadBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${createLocalDateTimeFileName()}.png`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+
+function createLocalDateTimeFileName() {
+  const formatted = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "short",
+    timeStyle: "medium"
+  }).format(new Date());
+
+  return sanitizeFileName(formatted) || "collage";
+}
+
+function sanitizeFileName(value) {
+  return value
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/[. ]+$/g, "")
+    .trim();
+}
+
+function showGenerateButtonMessage(message) {
+  clearTimeout(buttonMessageTimer);
+  generateButton.textContent = message;
+  resetGenerateButtonTextLater();
+}
+
+function resetGenerateButtonTextLater() {
+  clearTimeout(buttonMessageTimer);
+  buttonMessageTimer = window.setTimeout(() => {
+    if (!generateButton.disabled) {
+      generateButton.textContent = "生成拼图";
+    }
+  }, 1600);
 }
 
 function createLayout(count, settings) {
@@ -1241,18 +1251,13 @@ function resetPreviewZoom() {
 }
 
 function resetPreview() {
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl);
-    previewUrl = null;
-  }
-
   clearTimeout(renderTimer);
-  clearTimeout(exportTimer);
+  clearTimeout(buttonMessageTimer);
   editableCollage.replaceChildren();
   editableCollage.classList.remove("has-collage");
-  downloadLink.removeAttribute("href");
-  downloadLink.classList.add("is-disabled");
   emptyState.classList.remove("is-hidden");
+  generateButton.disabled = false;
+  generateButton.textContent = "生成拼图";
   resetPreviewZoom();
 }
 
