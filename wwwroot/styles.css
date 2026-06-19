@@ -401,6 +401,77 @@ a:focus-visible {
   opacity: .7;
 }
 
+.project-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.project-panel p {
+  margin: 0;
+}
+
+.project-panel a,
+.text-link {
+  color: var(--focus);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.project-panel a:hover,
+.text-link:hover {
+  text-decoration: underline;
+}
+
+.update-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--focus), var(--line) 70%);
+  border-radius: 8px;
+  background: #f3f7ff;
+  color: var(--text);
+}
+
+.update-card[hidden] {
+  display: none;
+}
+
+.update-card strong {
+  font-size: 13px;
+}
+
+.project-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.secondary-button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--focus);
+  border-radius: 6px;
+  background: var(--focus);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  filter: brightness(.94);
+}
+
+.secondary-button:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
 .preview-pane {
   display: grid;
   grid-template-rows: minmax(0, 1fr);

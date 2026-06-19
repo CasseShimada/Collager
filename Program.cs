@@ -106,6 +106,19 @@ app.MapPost("/api/collage", async (HttpRequest request, CollageRenderer renderer
     }
 });
 
+var updates = app.Services.GetRequiredService<AppUpdateService>();
+app.MapGet("/api/update/status", async (AppUpdateService updateService, CancellationToken cancellationToken) =>
+{
+    var info = await updateService.CheckAsync(cancellationToken);
+    return Results.Ok(info);
+});
+
+app.MapPost("/api/update/install", async (AppUpdateService updateService, CancellationToken cancellationToken) =>
+{
+    var info = await updateService.InstallLatestAsync(cancellationToken);
+    return Results.Ok(info);
+});
+
 app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
 {
     if (Path.HasExtension(context.Request.Path))
@@ -119,8 +132,7 @@ app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
     return Results.Content(html, "text/html");
 });
 
-var updates = app.Services.GetRequiredService<AppUpdateService>();
-using var trayIcon = new TrayIconService(app, updates);
+using var trayIcon = new TrayIconService(app);
 trayIcon.Start();
 if (openBrowserOnStart)
 {
@@ -132,7 +144,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
     _ = Task.Run(async () =>
     {
         await Task.Delay(TimeSpan.FromSeconds(8));
-        await updates.CheckAndInstallAsync(AppUpdateCheckReason.Automatic);
+        await updates.CheckAsync();
     });
 });
 

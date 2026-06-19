@@ -7,23 +7,31 @@ using System.Text.Json.Serialization;
 
 namespace MeiTool.Services;
 
-public enum AppUpdateCheckReason
-{
-    Automatic,
-    Manual
-}
-
-public sealed record AppUpdateStatus(string Message, bool ShowNotification);
+public sealed record AppUpdateInfo(
+    bool Supported,
+    bool UpdateAvailable,
+    bool Installing,
+    string CurrentVersion,
+    string? LatestVersion,
+    string ReleaseUrl,
+    string IssuesUrl,
+    string Message);
 
 public sealed class AppUpdateService : IDisposable
 {
     private const string LatestReleaseUrl = "https://api.github.com/repos/CasseShimada/Collager/releases/latest";
     private const string WindowsAssetName = "Collager-win-x64.zip";
+    public const string RepositoryUrl = "https://github.com/CasseShimada/Collager";
+    public const string ReleasesUrl = "https://github.com/CasseShimada/Collager/releases";
+    public const string IssuesUrl = "https://github.com/CasseShimada/Collager/issues";
 
     private readonly HttpClient _httpClient;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly ILogger<AppUpdateService> _logger;
     private readonly SemaphoreSlim _updateLock = new(1, 1);
+    private GitHubRelease? _latestRelease;
+    private Version? _latestVersion;
+    private string? _lastMessage;
     private bool _disposed;
 
     public AppUpdateService(IHostApplicationLifetime lifetime, ILogger<AppUpdateService> logger)
@@ -35,69 +43,102 @@ public sealed class AppUpdateService : IDisposable
         _httpClient.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
     }
 
-    public event EventHandler<AppUpdateStatus>? StatusChanged;
-
     public Version CurrentVersion { get; } = GetCurrentVersion();
 
-    public async Task CheckAndInstallAsync(AppUpdateCheckReason reason, CancellationToken cancellationToken = default)
+    public async Task<AppUpdateInfo> CheckAsync(CancellationToken cancellationToken = default)
     {
-        var isManual = reason == AppUpdateCheckReason.Manual;
-
-        if (!OperatingSystem.IsWindows())
+        if (!IsPackagedWindowsExe())
         {
-            Publish("自动更新仅支持 Windows exe 版本。", isManual);
-            return;
-        }
-
-        var processPath = Environment.ProcessPath;
-        if (string.IsNullOrWhiteSpace(processPath) ||
-            !string.Equals(Path.GetFileName(processPath), $"{AppBrand.Name}.exe", StringComparison.OrdinalIgnoreCase))
-        {
-            Publish("当前运行方式不支持自动更新，请使用已打包的 exe 版本。", isManual);
-            return;
-        }
-
-        if (!await _updateLock.WaitAsync(0, cancellationToken))
-        {
-            Publish("更新检查正在进行中。", isManual);
-            return;
+            _lastMessage = "当前运行方式不支持应用内更新，请从 GitHub Release 下载新版。";
+            return CreateInfo(false, false, false, null, _lastMessage);
         }
 
         try
         {
-            Publish("正在检查更新...", isManual);
             var release = await GetLatestReleaseAsync(cancellationToken);
             if (release is null)
             {
-                Publish("没有找到可用的远端版本。", isManual);
-                return;
+                _lastMessage = "暂时无法获取更新信息。";
+                return CreateInfo(true, false, false, null, _lastMessage);
+            }
+
+            _latestRelease = release;
+            if (!TryParseVersion(release.TagName, out var latestVersion))
+            {
+                _latestVersion = null;
+                _lastMessage = $"无法识别远端版本号：{release.TagName}";
+                return CreateInfo(true, false, false, null, _lastMessage);
+            }
+
+            _latestVersion = latestVersion;
+            var updateAvailable = latestVersion > CurrentVersion;
+            _lastMessage = updateAvailable
+                ? $"发现新版本 {release.TagName}。"
+                : $"当前已是最新版本：{CurrentVersion}";
+            return CreateInfo(true, updateAvailable, false, latestVersion, _lastMessage);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to check updates for {AppName}.", AppBrand.Name);
+            _lastMessage = $"更新检查失败：{ex.Message}";
+            return CreateInfo(true, false, false, _latestVersion, _lastMessage);
+        }
+    }
+
+    public async Task<AppUpdateInfo> InstallLatestAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsPackagedWindowsExe())
+        {
+            _lastMessage = "当前运行方式不支持应用内更新，请从 GitHub Release 下载新版。";
+            return CreateInfo(false, false, false, null, _lastMessage);
+        }
+
+        if (!await _updateLock.WaitAsync(0, cancellationToken))
+        {
+            _lastMessage = "更新正在进行中。";
+            return CreateInfo(true, IsUpdateAvailable(), true, _latestVersion, _lastMessage);
+        }
+
+        try
+        {
+            _lastMessage = "正在检查更新...";
+            var release = _latestRelease ?? await GetLatestReleaseAsync(cancellationToken);
+            if (release is null)
+            {
+                _lastMessage = "没有找到可用的远端版本。";
+                return CreateInfo(true, false, false, _latestVersion, _lastMessage);
             }
 
             if (!TryParseVersion(release.TagName, out var latestVersion))
             {
-                Publish($"无法识别远端版本号：{release.TagName}", isManual);
-                return;
+                _lastMessage = $"无法识别远端版本号：{release.TagName}";
+                return CreateInfo(true, false, false, null, _lastMessage);
             }
 
+            _latestRelease = release;
+            _latestVersion = latestVersion;
             if (latestVersion <= CurrentVersion)
             {
-                Publish($"当前已是最新版本：{CurrentVersion}", isManual);
-                return;
+                _lastMessage = $"当前已是最新版本：{CurrentVersion}";
+                return CreateInfo(true, false, false, latestVersion, _lastMessage);
             }
 
             var asset = SelectWindowsAsset(release);
             if (asset is null)
             {
-                Publish($"发现 {release.TagName}，但 Release 中没有 {WindowsAssetName}。", true);
-                return;
+                _lastMessage = $"发现 {release.TagName}，但 Release 中没有 {WindowsAssetName}。";
+                return CreateInfo(true, true, false, latestVersion, _lastMessage);
             }
 
-            Publish($"发现新版本 {release.TagName}，正在下载...", true);
+            _lastMessage = $"正在下载 {release.TagName}...";
             var packagePath = await DownloadPackageAsync(asset, latestVersion, cancellationToken);
             var payloadPath = ExtractPackage(packagePath, latestVersion);
-            Publish("更新已下载，正在重启并安装...", true);
+            _lastMessage = "更新已下载，正在重启并安装...";
+            var processPath = Environment.ProcessPath
+                ?? throw new InvalidOperationException("无法确定当前程序路径。");
             StartInstaller(processPath, payloadPath);
             _lifetime.StopApplication();
+            return CreateInfo(true, true, true, latestVersion, _lastMessage);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -106,7 +147,8 @@ public sealed class AppUpdateService : IDisposable
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to update {AppName}.", AppBrand.Name);
-            Publish($"更新失败：{ex.Message}", isManual);
+            _lastMessage = $"更新失败：{ex.Message}";
+            return CreateInfo(true, IsUpdateAvailable(), false, _latestVersion, _lastMessage);
         }
         finally
         {
@@ -295,9 +337,35 @@ Start-Process -FilePath (Join-Path $Target $ExeName) -ArgumentList $argumentList
         return Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0);
     }
 
-    private void Publish(string message, bool showNotification)
+    private bool IsUpdateAvailable()
     {
-        StatusChanged?.Invoke(this, new AppUpdateStatus(message, showNotification));
+        return _latestVersion is not null && _latestVersion > CurrentVersion;
+    }
+
+    private static bool IsPackagedWindowsExe()
+    {
+        var processPath = Environment.ProcessPath;
+        return OperatingSystem.IsWindows() &&
+            !string.IsNullOrWhiteSpace(processPath) &&
+            string.Equals(Path.GetFileName(processPath), $"{AppBrand.Name}.exe", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private AppUpdateInfo CreateInfo(
+        bool supported,
+        bool updateAvailable,
+        bool installing,
+        Version? latestVersion,
+        string? message)
+    {
+        return new AppUpdateInfo(
+            supported,
+            updateAvailable,
+            installing,
+            CurrentVersion.ToString(),
+            latestVersion?.ToString(),
+            ReleasesUrl,
+            IssuesUrl,
+            message ?? "更新信息尚未检查。");
     }
 
     public void Dispose()

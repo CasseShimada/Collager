@@ -16,6 +16,11 @@ const previewZoomFit = document.querySelector("#previewZoomFit");
 const previewZoomIn = document.querySelector("#previewZoomIn");
 const previewZoomLabel = document.querySelector("#previewZoomLabel");
 const editableCollage = document.querySelector("#editableCollage");
+const updateCard = document.querySelector("#updateCard");
+const updateTitle = document.querySelector("#updateTitle");
+const updateText = document.querySelector("#updateText");
+const installUpdateButton = document.querySelector("#installUpdateButton");
+const releaseLink = document.querySelector("#releaseLink");
 
 const canvasPresets = {
   Auto: [1080, 1920],
@@ -159,6 +164,7 @@ const minPreviewZoom = 0.12;
 const maxPreviewZoom = 2.5;
 
 renderTemplates();
+checkForUpdates();
 
 fileInput.addEventListener("change", () => {
   addFiles([...fileInput.files]);
@@ -219,9 +225,66 @@ previewStage.addEventListener("wheel", zoomPreview);
 previewZoomOut.addEventListener("click", () => stepPreviewZoom(-1));
 previewZoomIn.addEventListener("click", () => stepPreviewZoom(1));
 previewZoomFit.addEventListener("click", fitPreviewToStage);
+installUpdateButton.addEventListener("click", installUpdate);
 
 function template(id, name, cells, columns = 6, rows = 6) {
   return { id, name, cells, columns, rows };
+}
+
+async function checkForUpdates() {
+  try {
+    const response = await fetch("/api/update/status");
+    if (!response.ok) {
+      return;
+    }
+
+    const info = await response.json();
+    renderUpdateInfo(info);
+  } catch {
+  }
+}
+
+function renderUpdateInfo(info) {
+  if (info.releaseUrl) {
+    releaseLink.href = info.releaseUrl;
+  }
+
+  if (!info.supported || !info.updateAvailable) {
+    updateCard.hidden = true;
+    return;
+  }
+
+  updateTitle.textContent = info.latestVersion
+    ? `发现新版本 ${info.latestVersion}`
+    : "发现新版本";
+  updateText.textContent = "是否更新由你决定，点击后才会下载并重启安装。";
+  installUpdateButton.disabled = Boolean(info.installing);
+  installUpdateButton.textContent = info.installing ? "更新中..." : "立即更新";
+  updateCard.hidden = false;
+}
+
+async function installUpdate() {
+  installUpdateButton.disabled = true;
+  installUpdateButton.textContent = "更新中...";
+  updateText.textContent = "正在下载更新，完成后会自动重启安装。";
+
+  try {
+    const response = await fetch("/api/update/install", { method: "POST" });
+    if (!response.ok) {
+      throw new Error("更新请求失败。");
+    }
+
+    const info = await response.json();
+    renderUpdateInfo(info);
+    if (!info.installing) {
+      updateText.textContent = info.message || "没有可安装的更新。";
+      installUpdateButton.disabled = false;
+    }
+  } catch (error) {
+    updateText.textContent = error.message || "更新失败，请从 Release 页面手动下载。";
+    installUpdateButton.disabled = false;
+    installUpdateButton.textContent = "重试更新";
+  }
 }
 
 function denseTemplate(id, name, mergedCells) {
