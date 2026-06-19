@@ -1,7 +1,7 @@
-using MeiTool.Models;
+using Collager.Models;
 using System.Text.Json;
 
-namespace MeiTool.Services;
+namespace Collager.Services;
 
 public sealed class AppConfigService
 {

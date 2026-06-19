@@ -1,5 +1,5 @@
-using MeiTool.Models;
-using MeiTool.Services;
+using Collager.Models;
+using Collager.Services;
 using Microsoft.AspNetCore.Http.Features;
 using System.Globalization;
 using System.Text.Json;
@@ -16,6 +16,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddSingleton<CollageRenderer>();
 builder.Services.AddSingleton<AppUpdateService>();
+builder.Services.AddSingleton<TemplateModService>();
 builder.Services.AddSingleton(configService);
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -121,6 +122,23 @@ app.MapGet("/api/config", (AppConfigService config) =>
 app.MapPost("/api/config", (AppConfig next, AppConfigService config) =>
 {
     return Results.Ok(config.Update(next));
+});
+
+app.MapGet("/api/templates", (TemplateModService templates) =>
+{
+    return Results.Ok(new
+    {
+        templateDirectory = templates.TemplateDirectory,
+        templates = templates.GetTemplates()
+    });
+});
+
+app.MapGet("/api/templates/icon/{**path}", (string path, TemplateModService templates) =>
+{
+    var decodedPath = Uri.UnescapeDataString(path);
+    return templates.TryGetIcon(decodedPath, out var fullPath, out var contentType)
+        ? Results.File(fullPath, contentType)
+        : Results.NotFound();
 });
 
 app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>

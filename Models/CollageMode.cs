@@ -1,4 +1,4 @@
-namespace MeiTool.Models;
+namespace Collager.Models;
 
 public enum CollageMode
 {

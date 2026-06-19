@@ -1,9 +1,9 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using MeiTool.Models;
+using Collager.Models;
 
-namespace MeiTool.Services;
+namespace Collager.Services;
 
 public sealed class CollageRenderer
 {

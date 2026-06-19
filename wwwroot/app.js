@@ -29,133 +29,15 @@ const canvasPresets = {
   Landscape: [1920, 1080]
 };
 
-const templates = {
-  2: [
-    template("2-vsplit", "竖分", [[0, 0, 3, 6], [3, 0, 3, 6]]),
-    template("2-hsplit", "横分", [[0, 0, 6, 3], [0, 3, 6, 3]]),
-    template("2-poster", "海报", [[0, 0, 6, 4], [0, 4, 6, 2]]),
-    template("2-corner", "角落", [[0, 0, 4, 6], [4, 3, 2, 3]]),
-    template("2-offset", "叠放", [[0, 0, 4, 4], [2, 2, 4, 4]])
-  ],
-  3: [
-    template("3-left", "主图左", [[0, 0, 3, 6], [3, 0, 3, 3], [3, 3, 3, 3]]),
-    template("3-bottom", "底栏", [[0, 0, 6, 4], [0, 4, 3, 2], [3, 4, 3, 2]]),
-    template("3-top", "顶部双图", [[0, 0, 3, 3], [3, 0, 3, 3], [0, 3, 6, 3]]),
-    template("3-columns", "三列", [[0, 0, 2, 6], [2, 0, 2, 6], [4, 0, 2, 6]]),
-    template("3-rows", "三行", [[0, 0, 6, 2], [0, 2, 6, 2], [0, 4, 6, 2]]),
-    template("3-feature", "大图", [[0, 0, 4, 6], [4, 0, 2, 3], [4, 3, 2, 3]]),
-    template("3-tall-side", "竖边栏", [[0, 0, 4, 6], [4, 0, 2, 3], [4, 3, 2, 3]]),
-    template("3-stacked", "双横栏", [[0, 0, 6, 2], [0, 2, 6, 2], [0, 4, 6, 2]])
-  ],
-  4: [
-    template("4-grid", "四宫格", [[0, 0, 3, 3], [3, 0, 3, 3], [0, 3, 3, 3], [3, 3, 3, 3]]),
-    template("4-mosaic", "拼接", [[0, 0, 4, 4], [4, 0, 2, 2], [4, 2, 2, 2], [0, 4, 6, 2]]),
-    template("4-side", "侧栏", [[0, 0, 3, 6], [3, 0, 3, 2], [3, 2, 3, 2], [3, 4, 3, 2]]),
-    template("4-banner", "横幅", [[0, 0, 6, 2], [0, 2, 2, 4], [2, 2, 2, 4], [4, 2, 2, 4]]),
-    template("4-stripes", "条纹", [[0, 0, 6, 1], [0, 1, 6, 2], [0, 3, 6, 1], [0, 4, 6, 2]]),
-    template("4-vertical", "竖条", [[0, 0, 2, 6], [2, 0, 1, 6], [3, 0, 1, 6], [4, 0, 2, 6]]),
-    template("4-stack", "堆叠", [[0, 0, 6, 2], [0, 2, 6, 2], [0, 4, 3, 2], [3, 4, 3, 2]]),
-    template("4-left-mini", "左大右三", [[0, 0, 3, 6], [3, 0, 3, 2], [3, 2, 3, 2], [3, 4, 3, 2]]),
-    template("4-top-trio", "三小一横", [[0, 0, 2, 3], [2, 0, 2, 3], [4, 0, 2, 3], [0, 3, 6, 3]]),
-    template("4-frame", "框形", [[0, 0, 3, 3], [3, 0, 3, 2], [0, 3, 2, 3], [2, 2, 4, 4]])
-  ],
-  5: [
-    template("5-grid", "五格", [[0, 0, 2, 3], [2, 0, 2, 3], [4, 0, 2, 3], [0, 3, 3, 3], [3, 3, 3, 3]]),
-    template("5-hero", "主图", [[0, 0, 4, 4], [4, 0, 2, 2], [4, 2, 2, 2], [0, 4, 3, 2], [3, 4, 3, 2]]),
-    template("5-right", "右栏", [[0, 0, 3, 6], [3, 0, 3, 2], [3, 2, 3, 2], [3, 4, 2, 2], [5, 4, 1, 2]]),
-    template("5-banner", "横向", [[0, 0, 6, 2], [0, 2, 3, 2], [3, 2, 3, 2], [0, 4, 3, 2], [3, 4, 3, 2]]),
-    template("5-bottom", "大上图", [[0, 0, 6, 3], [0, 3, 2, 3], [2, 3, 2, 3], [4, 3, 1, 3], [5, 3, 1, 3]]),
-    template("5-ladder", "阶梯", [[0, 0, 3, 2], [3, 0, 3, 3], [0, 2, 3, 2], [3, 3, 3, 3], [0, 4, 3, 2]]),
-    template("5-stripes", "五横条", [[0, 0, 6, 1], [0, 1, 6, 1], [0, 2, 6, 1], [0, 3, 6, 1], [0, 4, 6, 2]]),
-    template("5-center", "中心块", [[0, 0, 2, 3], [2, 0, 2, 2], [4, 0, 2, 3], [2, 2, 2, 2], [0, 3, 6, 3]])
-  ],
-  6: [
-    template("6-grid", "六宫格", [[0, 0, 2, 3], [2, 0, 2, 3], [4, 0, 2, 3], [0, 3, 2, 3], [2, 3, 2, 3], [4, 3, 2, 3]]),
-    template("6-feature", "错落", [[0, 0, 3, 3], [3, 0, 3, 2], [3, 2, 3, 2], [0, 3, 2, 3], [2, 3, 2, 3], [4, 4, 2, 2]]),
-    template("6-banner", "横幅", [[0, 0, 6, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 3, 2], [3, 4, 3, 2]]),
-    template("6-left", "主图左", [[0, 0, 3, 6], [3, 0, 3, 2], [3, 2, 3, 2], [3, 4, 1, 2], [4, 4, 1, 2], [5, 4, 1, 2]]),
-    template("6-stripes", "竖条", [[0, 0, 1, 6], [1, 0, 1, 6], [2, 0, 1, 6], [3, 0, 1, 6], [4, 0, 1, 6], [5, 0, 1, 6]]),
-    template("6-mosaic", "拼接", [[0, 0, 2, 2], [2, 0, 4, 2], [0, 2, 3, 2], [3, 2, 3, 2], [0, 4, 2, 2], [2, 4, 4, 2]]),
-    template("6-top-large", "上大下排", [[0, 0, 6, 3], [0, 3, 1, 3], [1, 3, 1, 3], [2, 3, 1, 3], [3, 3, 1, 3], [4, 3, 2, 3]]),
-    template("6-right-large", "右大左列", [[0, 0, 2, 2], [0, 2, 2, 2], [0, 4, 2, 2], [2, 0, 2, 3], [2, 3, 2, 3], [4, 0, 2, 6]])
-  ],
-  7: [
-    denseTemplate("7-balanced", "均衡", [[0, 0, 3, 3], [3, 0, 3, 3], [0, 3, 2, 3], [2, 3, 2, 3], [4, 3, 2, 2]]),
-    denseTemplate("7-side", "侧栏", [[0, 0, 2, 6], [2, 0, 2, 3], [4, 0, 2, 3], [2, 3, 2, 3], [4, 3, 2, 2]]),
-    denseTemplate("7-banner", "横幅", [[0, 0, 6, 2], [0, 2, 3, 2], [3, 2, 3, 2], [0, 4, 2, 2], [2, 4, 3, 2]])
-  ],
-  8: [
-    denseTemplate("8-hero", "主图", [[0, 0, 3, 3], [3, 0, 3, 2], [0, 3, 2, 3], [2, 3, 2, 3], [4, 2, 2, 3]]),
-    denseTemplate("8-banner", "横幅", [[0, 0, 6, 2], [0, 2, 2, 4], [2, 2, 2, 3], [4, 2, 2, 3]]),
-    denseTemplate("8-mosaic", "拼接", [[0, 0, 3, 3], [3, 0, 3, 3], [0, 3, 2, 2], [2, 3, 2, 2], [4, 3, 2, 2], [0, 5, 4, 1]])
-  ],
-  9: [
-    template("9-grid", "九宫格", [[0, 0, 2, 2], [2, 0, 2, 2], [4, 0, 2, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 2, 2], [2, 4, 2, 2], [4, 4, 2, 2]]),
-    denseTemplate("9-hero", "主图", [[0, 0, 3, 3], [3, 0, 3, 3], [0, 3, 2, 3], [2, 3, 2, 2], [4, 3, 2, 2]]),
-    denseTemplate("9-banner", "横幅", [[0, 0, 6, 2], [0, 2, 2, 4], [2, 2, 2, 2], [4, 2, 2, 2], [2, 4, 2, 2]])
-  ],
-  10: [
-    denseTemplate("10-hero", "主图", [[0, 0, 3, 3], [3, 0, 3, 2], [0, 3, 2, 3], [2, 3, 2, 3], [4, 2, 2, 2]]),
-    denseTemplate("10-stripes", "条带", [[0, 0, 6, 1], [0, 1, 6, 1], [0, 2, 2, 4], [2, 2, 2, 2], [4, 2, 2, 2], [2, 4, 2, 2]]),
-    denseTemplate("10-frame", "框形", [[0, 0, 6, 2], [0, 2, 2, 2], [4, 2, 2, 2], [0, 4, 2, 2], [2, 4, 2, 2], [4, 4, 2, 2]])
-  ],
-  11: [
-    denseTemplate("11-hero", "主图", [[0, 0, 3, 3], [3, 0, 3, 2], [0, 3, 2, 3], [2, 3, 2, 2], [4, 2, 2, 2], [4, 4, 1, 2]]),
-    denseTemplate("11-banner", "横幅", [[0, 0, 6, 2], [0, 2, 2, 3], [2, 2, 2, 3], [4, 2, 2, 2], [4, 4, 2, 1]]),
-    denseTemplate("11-stack", "堆叠", [[0, 0, 3, 2], [3, 0, 3, 2], [0, 2, 2, 3], [2, 2, 2, 2], [4, 2, 2, 2], [2, 4, 2, 2], [4, 4, 2, 1]])
-  ],
-  12: [
-    denseTemplate("12-hero", "主图", [[0, 0, 3, 3], [3, 0, 3, 2], [0, 3, 2, 3], [2, 3, 2, 2], [4, 2, 2, 2]]),
-    denseTemplate("12-stripes", "条带", [[0, 0, 6, 1], [0, 1, 6, 1], [0, 2, 2, 4], [2, 2, 2, 2], [4, 2, 2, 2], [2, 4, 2, 1]]),
-    denseTemplate("12-mosaic", "拼接", [[0, 0, 3, 2], [3, 0, 3, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 2, 2], [2, 4, 3, 1]])
-  ],
-  13: [
-    denseTemplate("13-hero", "主图", [[0, 0, 3, 3], [3, 0, 3, 2], [0, 3, 2, 2], [2, 3, 2, 2], [4, 2, 2, 2], [4, 4, 1, 2]]),
-    denseTemplate("13-mosaic", "拼接", [[0, 0, 3, 2], [3, 0, 3, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 2, 2], [2, 4, 2, 1]]),
-    denseTemplate("13-grid", "网格", [[0, 0, 2, 2], [2, 0, 2, 2], [4, 0, 2, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 2, 2], [2, 4, 3, 1]])
-  ],
-  14: [
-    denseTemplate("14-frame", "框形", [[0, 0, 3, 2], [3, 0, 3, 2], [0, 2, 2, 3], [2, 2, 2, 2], [4, 2, 2, 2], [2, 4, 2, 1]]),
-    denseTemplate("14-mosaic", "拼接", [[0, 0, 3, 2], [3, 0, 3, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 3, 1], [3, 4, 2, 1]]),
-    denseTemplate("14-grid", "网格", [[0, 0, 2, 2], [2, 0, 2, 2], [4, 0, 2, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 3, 1], [3, 4, 3, 1]])
-  ],
-  15: [
-    denseTemplate("15-frame", "框形", [[0, 0, 3, 2], [3, 0, 3, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 3, 1]]),
-    denseTemplate("15-grid", "网格", [[0, 0, 2, 2], [2, 0, 2, 2], [4, 0, 2, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 2, 2]]),
-    denseTemplate("15-mosaic", "拼接", [[0, 0, 2, 2], [2, 0, 2, 2], [4, 0, 2, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 3, 1], [3, 4, 2, 1]])
-  ],
-  16: [
-    denseTemplate("16-frame", "框形", [[0, 0, 3, 2], [3, 0, 3, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 1], [0, 4, 2, 2]]),
-    denseTemplate("16-grid", "网格", [[0, 0, 2, 2], [2, 0, 2, 2], [4, 0, 2, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 3, 1]]),
-    denseTemplate("16-mosaic", "拼接", [[0, 0, 2, 2], [2, 0, 2, 2], [4, 0, 2, 2], [0, 2, 2, 2], [2, 2, 2, 2], [4, 2, 2, 2], [0, 4, 2, 1], [2, 4, 2, 1]])
-  ],
-  27: [
-    denseTemplate("27-heart-left", "心形左", [[0, 0, 2, 2], [4, 0, 2, 2], [2, 3, 2, 2]]),
-    denseTemplate("27-heart-wide", "心形宽", [[0, 0, 2, 2], [4, 0, 2, 2], [0, 4, 2, 2], [5, 5, 1, 1]])
-  ],
-  28: [
-    denseTemplate("28-hero", "大主图", [[0, 0, 3, 3]]),
-    denseTemplate("28-center", "中心主图", [[2, 2, 3, 3]])
-  ],
-  29: [
-    denseTemplate("29-hero", "主图加竖栏", [[0, 0, 2, 3], [5, 3, 1, 3]]),
-    denseTemplate("29-side", "侧边强调", [[4, 0, 2, 3], [0, 3, 1, 3]])
-  ],
-  30: [
-    denseTemplate("30-duo", "双主图", [[0, 0, 2, 2], [4, 4, 2, 2]]),
-    denseTemplate("30-stack", "上下主图", [[0, 0, 2, 2], [0, 4, 2, 2]])
-  ],
-  31: [
-    denseTemplate("31-hero", "一张主图", [[0, 0, 2, 3]]),
-    denseTemplate("31-corner", "角落主图", [[4, 3, 2, 3]])
-  ]
-};
+let templates = {};
+let templateDirectory = '';
 
 let selectedFiles = [];
 let currentLayout = [];
 let previewZoom = 1;
 let fitPreviewZoom = 1;
-let isPreviewZoomManual = false;
+let isPreviewZoomManual = true;
+let hasRenderedPreview = false;
 let dragState = null;
 let previewPanState = null;
 let renderTimer = null;
@@ -202,9 +84,6 @@ settingsForm.addEventListener("submit", async event => {
 settingsForm.addEventListener("input", event => {
   if (["width", "height", "gap", "padding", "radius", "background", "equalGridRatio"].includes(event.target.name)) {
     updateEqualGridControl();
-    if (["width", "height", "gap", "padding", "equalGridRatio"].includes(event.target.name)) {
-      resetPreviewZoom();
-    }
     scheduleConfigSave();
     schedulePreviewRender();
   }
@@ -217,7 +96,6 @@ settingsForm.addEventListener("change", event => {
     }
 
     resetPlacements();
-    resetPreviewZoom();
     scheduleConfigSave();
     schedulePreviewRender();
   }
@@ -232,14 +110,69 @@ previewZoomIn.addEventListener("click", () => stepPreviewZoom(1));
 previewZoomFit.addEventListener("click", fitPreviewToStage);
 installUpdateButton.addEventListener("click", installUpdate);
 
-function template(id, name, cells, columns = 6, rows = 6) {
-  return { id, name, cells, columns, rows };
-}
-
 async function initializeApp() {
   await loadConfig();
+  await loadTemplates();
   renderTemplates();
   checkForUpdates();
+}
+
+async function loadTemplates() {
+  try {
+    const response = await fetch("/api/templates");
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = await response.json();
+    templateDirectory = payload.templateDirectory || "";
+    templates = groupTemplates(payload.templates || []);
+  } catch (error) {
+    console.warn("模板加载失败，已保留自动网格。", error);
+  }
+}
+
+function groupTemplates(items) {
+  return items.reduce((groups, item) => {
+    const normalized = normalizeTemplate(item);
+    if (!normalized) {
+      return groups;
+    }
+
+    const key = normalized.imageCount;
+    groups[key] = groups[key] || [];
+    groups[key].push(normalized);
+    return groups;
+  }, {});
+}
+
+function normalizeTemplate(item) {
+  const cells = Array.isArray(item.cells)
+    ? item.cells.map(cell => [
+      Number(cell.column),
+      Number(cell.row),
+      Number(cell.columnSpan),
+      Number(cell.rowSpan)
+    ])
+    : [];
+
+  const imageCount = Number(item.imageCount);
+  const columns = Number(item.columns || 6);
+  const rows = Number(item.rows || 6);
+  if (!item.id || !Number.isInteger(imageCount) || imageCount <= 0 || cells.length !== imageCount) {
+    return null;
+  }
+
+  return {
+    id: item.id,
+    name: item.name || item.id,
+    source: item.source || "custom",
+    imageCount,
+    columns: Number.isFinite(columns) ? columns : 6,
+    rows: Number.isFinite(rows) ? rows : 6,
+    iconUrl: item.iconUrl || "",
+    cells
+  };
 }
 
 async function loadConfig() {
@@ -375,33 +308,6 @@ async function installUpdate() {
   }
 }
 
-function denseTemplate(id, name, mergedCells) {
-  return template(id, name, denseCells(mergedCells));
-}
-
-function denseCells(mergedCells) {
-  const covered = new Set();
-  const cells = [...mergedCells];
-
-  mergedCells.forEach(cell => {
-    for (let row = cell[1]; row < cell[1] + cell[3]; row += 1) {
-      for (let column = cell[0]; column < cell[0] + cell[2]; column += 1) {
-        covered.add(`${column},${row}`);
-      }
-    }
-  });
-
-  for (let row = 0; row < 6; row += 1) {
-    for (let column = 0; column < 6; column += 1) {
-      if (!covered.has(`${column},${row}`)) {
-        cells.push([column, row, 1, 1]);
-      }
-    }
-  }
-
-  return cells;
-}
-
 function addFiles(files) {
   const existingKeys = new Set(selectedFiles.map(item => createFileKey(item.file)));
   const additions = [];
@@ -454,6 +360,8 @@ function createFileKey(file) {
 function clearFiles() {
   selectedFiles.forEach(item => URL.revokeObjectURL(item.previewUrl));
   selectedFiles = [];
+  resetPreviewZoom();
+  hasRenderedPreview = false;
   updateSelectionState();
 }
 
@@ -469,13 +377,19 @@ function removeFile(index) {
 }
 
 function updateSelectionState(skippedDuplicates = 0) {
-  resetPreviewZoom();
+  const shouldFitInitialPreview = !hasRenderedPreview && selectedFiles.length > 0;
   renderThumbs();
   renderTemplates();
-  resetPreview();
   updateSelectionStatus(skippedDuplicates);
 
-  if (selectedFiles.length > 0) {
+  if (selectedFiles.length === 0) {
+    resetPreview();
+    return;
+  }
+
+  if (shouldFitInitialPreview) {
+    fitPreviewToStage();
+  } else {
     schedulePreviewRender();
   }
 }
@@ -488,7 +402,8 @@ function updateSelectionStatus(skippedDuplicates = 0) {
 
 function renderThumbs() {
   thumbStrip.replaceChildren();
-  thumbStrip.classList.toggle("is-empty", selectedFiles.length === 0);
+  thumbStrip.classList.remove("is-empty");
+  thumbStrip.classList.toggle("has-items", selectedFiles.length > 0);
   const fragment = document.createDocumentFragment();
 
   selectedFiles.forEach((item, index) => {
@@ -520,7 +435,7 @@ function renderThumbs() {
 
 function renderTemplates() {
   templateGrid.replaceChildren();
-  const templateCount = getTemplateCount();
+  const templateItems = getTemplatesForCurrentCount();
 
   if (selectedFiles.length === 0) {
     templateInput.value = "auto";
@@ -534,7 +449,6 @@ function renderTemplates() {
     return;
   }
 
-  const templateItems = templateCount === "auto" ? [] : templates[templateCount] || [];
   const items = [createAutoTemplateOption(), createEqualGridTemplateOption(), ...templateItems];
   const fragment = document.createDocumentFragment();
   const activeStillVisible = items.some(item => item.id === templateInput.value);
@@ -552,7 +466,6 @@ function renderTemplates() {
     button.addEventListener("click", () => {
       templateInput.value = item.id;
       resetPlacements();
-      resetPreviewZoom();
       renderTemplates();
       scheduleConfigSave();
       schedulePreviewRender();
@@ -578,6 +491,14 @@ function createTemplateOptionPreview(item) {
 }
 
 function createTemplatePreview(item) {
+  if (item.iconUrl) {
+    const image = document.createElement("img");
+    image.className = "template-icon";
+    image.src = item.iconUrl;
+    image.alt = "";
+    return image;
+  }
+
   const preview = document.createElement("span");
   preview.className = "template-preview";
 
@@ -602,7 +523,9 @@ async function generateCollage() {
   await exportAndDownload();
 }
 
-function renderEditablePreview() {
+function renderEditablePreview(options = {}) {
+  const preserveViewport = options.preserveViewport !== false;
+  const previousViewport = preserveViewport ? capturePreviewViewport() : null;
   const settings = getSettings();
   const layout = createLayout(selectedFiles.length, settings);
 
@@ -611,6 +534,7 @@ function renderEditablePreview() {
   editableCollage.replaceChildren();
 
   if (selectedFiles.length === 0) {
+    hasRenderedPreview = false;
     return;
   }
 
@@ -667,6 +591,10 @@ function renderEditablePreview() {
     editableCollage.appendChild(tile);
   });
 
+  hasRenderedPreview = true;
+  if (previousViewport) {
+    restorePreviewViewport(previousViewport);
+  }
 }
 
 function getPreviewScale(settings) {
@@ -674,7 +602,7 @@ function getPreviewScale(settings) {
   const maxHeight = Math.max(180, previewStage.clientHeight - 32);
   fitPreviewZoom = clamp(Math.min(maxWidth / settings.width, maxHeight / settings.height), minPreviewZoom, 1);
 
-  if (!isPreviewZoomManual) {
+  if (!hasRenderedPreview && !isPreviewZoomManual) {
     previewZoom = fitPreviewZoom;
   }
 
@@ -684,7 +612,7 @@ function getPreviewScale(settings) {
 }
 
 function zoomPreview(event) {
-  if (event.target.closest(".collage-tile")) {
+  if (event.target.closest(".collage-tile") && isImageZoomGesture(event)) {
     return;
   }
 
@@ -698,8 +626,18 @@ function stepPreviewZoom(direction) {
 }
 
 function fitPreviewToStage() {
+  if (selectedFiles.length === 0) {
+    return;
+  }
+
+  const settings = getSettings();
+  const maxWidth = Math.max(180, previewStage.clientWidth - 32);
+  const maxHeight = Math.max(180, previewStage.clientHeight - 32);
+  fitPreviewZoom = clamp(Math.min(maxWidth / settings.width, maxHeight / settings.height), minPreviewZoom, 1);
+  previewZoom = fitPreviewZoom;
   isPreviewZoomManual = false;
-  renderEditablePreview();
+  renderEditablePreview({ preserveViewport: false });
+  centerPreview();
 }
 
 function setPreviewZoom(nextZoom, clientX, clientY) {
@@ -731,6 +669,23 @@ function getStagePoint(clientX, clientY) {
     scrollLeft: previewStage.scrollLeft + clientX - rect.left,
     scrollTop: previewStage.scrollTop + clientY - rect.top
   };
+}
+
+function capturePreviewViewport() {
+  return {
+    scrollLeft: previewStage.scrollLeft,
+    scrollTop: previewStage.scrollTop
+  };
+}
+
+function restorePreviewViewport(viewport) {
+  previewStage.scrollLeft = viewport.scrollLeft;
+  previewStage.scrollTop = viewport.scrollTop;
+}
+
+function centerPreview() {
+  previewStage.scrollLeft = Math.max(0, (previewStage.scrollWidth - previewStage.clientWidth) / 2);
+  previewStage.scrollTop = Math.max(0, (previewStage.scrollHeight - previewStage.clientHeight) / 2);
 }
 
 function getStageCenter() {
@@ -999,7 +954,12 @@ function getTileIndexAt(clientX, clientY, fallbackIndex) {
 }
 
 function zoomTileImage(event, index) {
+  if (!isImageZoomGesture(event)) {
+    return;
+  }
+
   event.preventDefault();
+  event.stopPropagation();
   const item = selectedFiles[index];
   const rect = currentLayout[index];
   const tile = event.currentTarget;
@@ -1014,7 +974,10 @@ function zoomTileImage(event, index) {
   }
 
   applyImagePlacement(image, item, rect);
-  showGenerateButtonMessage(`${Math.round(item.scale * 100)}%`);
+}
+
+function isImageZoomGesture(event) {
+  return event.ctrlKey || event.altKey || event.shiftKey;
 }
 
 function applyImagePlacement(image, item, rect) {
@@ -1378,12 +1341,7 @@ function getNaturalRowHeight(row, contentWidth, gap) {
 }
 
 function getSelectedTemplate() {
-  const templateCount = getTemplateCount();
-  if (templateCount === "auto") {
-    return null;
-  }
-
-  return (templates[templateCount] || []).find(item => item.id === templateInput.value);
+  return getTemplatesForCurrentCount().find(item => item.id === templateInput.value) || null;
 }
 
 function isEqualGridTemplate(templateId) {
@@ -1409,8 +1367,8 @@ function formatRatio(value) {
   return `1:${(1 / ratio).toFixed(2)}`;
 }
 
-function getTemplateCount() {
-  return Array.isArray(templates[selectedFiles.length]) ? selectedFiles.length : "auto";
+function getTemplatesForCurrentCount() {
+  return templates[selectedFiles.length] || [];
 }
 
 function clampAspect(aspect) {
@@ -1464,7 +1422,7 @@ function resetPlacements() {
 }
 
 function resetPreviewZoom() {
-  previewZoom = fitPreviewZoom || 1;
+  previewZoom = 1;
   isPreviewZoomManual = false;
   updatePreviewZoomControls();
 }
@@ -1477,7 +1435,6 @@ function resetPreview() {
   emptyState.classList.remove("is-hidden");
   generateButton.disabled = false;
   generateButton.textContent = "生成拼图";
-  resetPreviewZoom();
 }
 
 function clamp(value, min, max) {

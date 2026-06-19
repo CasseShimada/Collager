@@ -1,7 +1,7 @@
 using System.Drawing;
 using System.Globalization;
 
-namespace MeiTool.Services;
+namespace Collager.Services;
 
 public static class ColorParser
 {

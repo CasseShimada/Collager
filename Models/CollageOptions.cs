@@ -1,6 +1,6 @@
 using System.Drawing;
 
-namespace MeiTool.Models;
+namespace Collager.Models;
 
 public sealed class CollageOptions
 {

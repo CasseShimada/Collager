@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using Forms = System.Windows.Forms;
 
-namespace MeiTool.Services;
+namespace Collager.Services;
 
 public sealed class TrayIconService : IDisposable
 {

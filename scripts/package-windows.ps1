@@ -13,7 +13,7 @@ if (Test-Path -LiteralPath $zip) {
   Remove-Item -LiteralPath $zip -Force
 }
 
-dotnet publish (Join-Path $root "MeituCollage.csproj") `
+dotnet publish (Join-Path $root "Collager.csproj") `
   -c Release `
   -r win-x64 `
   --self-contained true `
