@@ -71,11 +71,6 @@ app.MapPost("/api/collage", async (HttpRequest request, CollageRenderer renderer
         return Results.BadRequest(new { error = "请至少选择一张图片。" });
     }
 
-    if (imageFiles.Count > 31)
-    {
-        return Results.BadRequest(new { error = "一次最多支持 31 张图片。" });
-    }
-
     var options = new CollageOptions
     {
         OutputWidth = ReadInt(form, "width", 1080, 400, 6000),

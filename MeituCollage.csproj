@@ -10,6 +10,7 @@
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <RepositoryUrl>https://github.com/CasseShimada/Collager</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
@@ -17,5 +18,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Installer\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -126,9 +126,12 @@ p {
 
 .thumb-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  grid-auto-rows: 72px;
   gap: 8px;
-  min-height: 66px;
+  max-height: 152px;
+  overflow: auto;
+  align-content: start;
 }
 
 .thumb-strip.is-empty {
@@ -138,13 +141,12 @@ p {
 .thumb-item {
   position: relative;
   min-width: 0;
-  aspect-ratio: 1;
+  min-height: 0;
 }
 
 .thumb-item img {
   width: 100%;
   height: 100%;
-  aspect-ratio: 1;
   display: block;
   object-fit: cover;
   border: 1px solid var(--line);
@@ -538,6 +540,7 @@ a:focus-visible {
   min-height: 0;
   padding: 16px;
   overflow: auto;
+  cursor: grab;
   background:
     linear-gradient(45deg, #f7f8fa 25%, transparent 25%),
     linear-gradient(-45deg, #f7f8fa 25%, transparent 25%),
@@ -545,6 +548,11 @@ a:focus-visible {
     linear-gradient(-45deg, transparent 75%, #f7f8fa 75%);
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
   background-size: 20px 20px;
+}
+
+.preview-stage.is-panning {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .editable-collage {
@@ -608,19 +616,7 @@ a:focus-visible {
   inset: 0;
   display: grid;
   place-items: center;
-  gap: 8px;
   color: var(--muted);
-}
-
-.empty-state span {
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  font-size: 34px;
 }
 
 .empty-state.is-hidden {

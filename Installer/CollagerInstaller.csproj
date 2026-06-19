@@ -8,6 +8,7 @@
     <AssemblyName>Collager-Setup</AssemblyName>
     <RootNamespace>CollagerInstaller</RootNamespace>
     <Version>1.0.0</Version>
+    <ApplicationIcon>..\Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

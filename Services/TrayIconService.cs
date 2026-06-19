@@ -76,7 +76,7 @@ public sealed class TrayIconService : IDisposable
 
             _notifyIcon = new Forms.NotifyIcon
             {
-                Icon = SystemIcons.Application,
+                Icon = LoadTrayIcon(),
                 Text = AppBrand.Name,
                 Visible = true,
                 ContextMenuStrip = new Forms.ContextMenuStrip()
@@ -86,6 +86,25 @@ public sealed class TrayIconService : IDisposable
             _notifyIcon.ContextMenuStrip.Items.Add(new Forms.ToolStripSeparator());
             _notifyIcon.ContextMenuStrip.Items.Add(exitItem);
             _notifyIcon.DoubleClick += (_, _) => openApp();
+        }
+
+        private static Icon LoadTrayIcon()
+        {
+            var paths = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"),
+                Path.Combine(Directory.GetCurrentDirectory(), "Assets", "AppIcon.ico")
+            };
+
+            foreach (var path in paths)
+            {
+                if (File.Exists(path))
+                {
+                    return new Icon(path);
+                }
+            }
+
+            return SystemIcons.Application;
         }
 
         protected override void Dispose(bool disposing)

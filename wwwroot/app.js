@@ -157,6 +157,7 @@ let previewZoom = 1;
 let fitPreviewZoom = 1;
 let isPreviewZoomManual = false;
 let dragState = null;
+let previewPanState = null;
 let renderTimer = null;
 let buttonMessageTimer = null;
 let configSaveTimer = null;
@@ -225,6 +226,7 @@ settingsForm.addEventListener("change", event => {
 window.addEventListener("resize", schedulePreviewRender);
 
 previewStage.addEventListener("wheel", zoomPreview);
+previewStage.addEventListener("pointerdown", beginPreviewPan);
 previewZoomOut.addEventListener("click", () => stepPreviewZoom(-1));
 previewZoomIn.addEventListener("click", () => stepPreviewZoom(1));
 previewZoomFit.addEventListener("click", fitPreviewToStage);
@@ -402,10 +404,8 @@ function denseCells(mergedCells) {
 
 function addFiles(files) {
   const existingKeys = new Set(selectedFiles.map(item => createFileKey(item.file)));
-  const availableSlots = Math.max(0, 31 - selectedFiles.length);
   const additions = [];
   let skippedDuplicates = 0;
-  let skippedLimit = 0;
 
   for (const file of files) {
     const key = createFileKey(file);
@@ -415,20 +415,16 @@ function addFiles(files) {
     }
 
     existingKeys.add(key);
-    if (additions.length < availableSlots) {
-      additions.push(createFileItem(file));
-    } else {
-      skippedLimit += 1;
-    }
+    additions.push(createFileItem(file));
   }
 
   if (additions.length === 0) {
-    updateSelectionStatus(skippedDuplicates, skippedLimit);
+    updateSelectionStatus(skippedDuplicates);
     return;
   }
 
   selectedFiles = [...selectedFiles, ...additions];
-  updateSelectionState(skippedDuplicates, skippedLimit);
+  updateSelectionState(skippedDuplicates);
 }
 
 function createFileItem(file) {
@@ -472,22 +468,20 @@ function removeFile(index) {
   updateSelectionState();
 }
 
-function updateSelectionState(skippedDuplicates = 0, skippedLimit = 0) {
+function updateSelectionState(skippedDuplicates = 0) {
   resetPreviewZoom();
   renderThumbs();
   renderTemplates();
   resetPreview();
-  updateSelectionStatus(skippedDuplicates, skippedLimit);
+  updateSelectionStatus(skippedDuplicates);
 
   if (selectedFiles.length > 0) {
     schedulePreviewRender();
   }
 }
 
-function updateSelectionStatus(skippedDuplicates = 0, skippedLimit = 0) {
-  if (skippedLimit > 0) {
-    showGenerateButtonMessage(`已忽略 ${skippedLimit} 张`);
-  } else if (skippedDuplicates > 0) {
+function updateSelectionStatus(skippedDuplicates = 0) {
+  if (skippedDuplicates > 0) {
     showGenerateButtonMessage(`跳过 ${skippedDuplicates} 张重复图片`);
   }
 }
@@ -752,6 +746,65 @@ function updatePreviewZoomControls() {
   previewZoomOut.disabled = selectedFiles.length === 0 || previewZoom <= minPreviewZoom + 0.005;
   previewZoomIn.disabled = selectedFiles.length === 0 || previewZoom >= maxPreviewZoom - 0.005;
   previewZoomFit.disabled = selectedFiles.length === 0 || !isPreviewZoomManual;
+}
+
+function beginPreviewPan(event) {
+  if (event.button !== 0 || selectedFiles.length === 0 || dragState) {
+    return;
+  }
+
+  if (event.target.closest(".collage-tile, .preview-zoom-controls, button, input, a")) {
+    return;
+  }
+
+  const canPan = previewStage.scrollWidth > previewStage.clientWidth || previewStage.scrollHeight > previewStage.clientHeight;
+  if (!canPan) {
+    return;
+  }
+
+  previewPanState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    scrollLeft: previewStage.scrollLeft,
+    scrollTop: previewStage.scrollTop
+  };
+
+  previewStage.setPointerCapture(event.pointerId);
+  previewStage.classList.add("is-panning");
+  previewStage.addEventListener("pointermove", movePreviewPan);
+  previewStage.addEventListener("pointerup", endPreviewPan);
+  previewStage.addEventListener("pointercancel", cancelPreviewPan);
+  event.preventDefault();
+}
+
+function movePreviewPan(event) {
+  if (!previewPanState || event.pointerId !== previewPanState.pointerId) {
+    return;
+  }
+
+  previewStage.scrollLeft = previewPanState.scrollLeft - (event.clientX - previewPanState.startX);
+  previewStage.scrollTop = previewPanState.scrollTop - (event.clientY - previewPanState.startY);
+}
+
+function endPreviewPan(event) {
+  if (!previewPanState || event.pointerId !== previewPanState.pointerId) {
+    return;
+  }
+
+  cleanupPreviewPan();
+}
+
+function cancelPreviewPan() {
+  cleanupPreviewPan();
+}
+
+function cleanupPreviewPan() {
+  previewStage.classList.remove("is-panning");
+  previewStage.removeEventListener("pointermove", movePreviewPan);
+  previewStage.removeEventListener("pointerup", endPreviewPan);
+  previewStage.removeEventListener("pointercancel", cancelPreviewPan);
+  previewPanState = null;
 }
 
 function createAutoTemplateOption() {
