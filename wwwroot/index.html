@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>__APP_NAME__</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="sidebar" aria-label="拼图设置">
+          <div class="brand-row">
+            <div>
+              <h1>__APP_NAME__</h1>
+              <p>自动排版拼图工具</p>
+            </div>
+            <button class="icon-button" id="clearButton" type="button" title="清空图片" aria-label="清空图片">×</button>
+          </div>
+
+          <label class="drop-zone" id="dropZone">
+            <input id="fileInput" type="file" accept="image/*" multiple>
+            <span class="drop-title">拖入图片或点击选择</span>
+            <span class="drop-hint">支持 JPG、PNG、WEBP，最多 31 张</span>
+          </label>
+
+          <div class="thumb-strip" id="thumbStrip" aria-label="已选择图片"></div>
+
+          <form class="controls" id="settingsForm">
+            <section class="template-panel" aria-label="模板选择">
+              <div class="template-header">
+                <span>模板</span>
+                <strong id="templateCountLabel">自动</strong>
+              </div>
+              <input id="templateInput" name="template" type="hidden" value="auto">
+              <div class="template-grid" id="templateGrid"></div>
+              <label class="equal-grid-control is-hidden" id="equalGridControl">
+                <span>等格比例 <strong id="equalGridRatioValue">1:1</strong></span>
+                <input id="equalGridRatioInput" name="equalGridRatio" type="range" min="0.35" max="2.8" step="0.05" value="1">
+              </label>
+            </section>
+
+            <div class="control-grid">
+              <label>
+                <span>宽度</span>
+                <input name="width" type="number" min="400" max="6000" value="1600">
+              </label>
+              <label>
+                <span>高度</span>
+                <input name="height" type="number" min="400" max="6000" value="1200">
+              </label>
+              <label>
+                <span>间距</span>
+                <input name="gap" type="number" min="0" max="120" value="18">
+              </label>
+              <label>
+                <span>边距</span>
+                <input name="padding" type="number" min="0" max="200" value="28">
+              </label>
+              <label>
+                <span>圆角</span>
+                <input name="radius" type="number" min="0" max="80" value="18">
+              </label>
+              <label>
+                <span>背景</span>
+                <input name="background" type="color" value="#ffffff">
+              </label>
+            </div>
+
+            <fieldset class="mode-group">
+              <legend>画布比例</legend>
+              <label><input type="radio" name="mode" value="Auto" checked><span>自动</span></label>
+              <label><input type="radio" name="mode" value="Square"><span>方形</span></label>
+              <label><input type="radio" name="mode" value="Portrait"><span>竖版</span></label>
+              <label><input type="radio" name="mode" value="Landscape"><span>横版</span></label>
+            </fieldset>
+
+            <button class="primary-button" id="generateButton" type="submit">生成拼图</button>
+          </form>
+        </aside>
+
+        <section class="preview-pane" aria-label="拼图预览">
+          <div class="preview-toolbar">
+            <div>
+              <strong id="statusTitle">等待图片</strong>
+              <span id="statusText">选择图片后生成预览</span>
+            </div>
+            <a class="download-button is-disabled" id="downloadLink" download="__APP_NAME__.png">下载 PNG</a>
+          </div>
+          <div class="preview-stage">
+            <div class="empty-state" id="emptyState">
+              <span>+</span>
+              <p>图片会在这里预览</p>
+            </div>
+            <div class="editable-collage" id="editableCollage" aria-label="可编辑拼图预览"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
