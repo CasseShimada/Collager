@@ -1,6 +1,5 @@
 const fileInput = document.querySelector("#fileInput");
 const dropZone = document.querySelector("#dropZone");
-const thumbStrip = document.querySelector("#thumbStrip");
 const settingsForm = document.querySelector("#settingsForm");
 const generateButton = document.querySelector("#generateButton");
 const clearButton = document.querySelector("#clearButton");
@@ -40,6 +39,8 @@ let isPreviewZoomManual = true;
 let hasRenderedPreview = false;
 let dragState = null;
 let previewPanState = null;
+let hoveredTile = null;
+let hoveredTileAt = 0;
 let renderTimer = null;
 let buttonMessageTimer = null;
 let configSaveTimer = null;
@@ -378,7 +379,6 @@ function removeFile(index) {
 
 function updateSelectionState(skippedDuplicates = 0) {
   const shouldFitInitialPreview = !hasRenderedPreview && selectedFiles.length > 0;
-  renderThumbs();
   renderTemplates();
   updateSelectionStatus(skippedDuplicates);
 
@@ -398,39 +398,6 @@ function updateSelectionStatus(skippedDuplicates = 0) {
   if (skippedDuplicates > 0) {
     showGenerateButtonMessage(`跳过 ${skippedDuplicates} 张重复图片`);
   }
-}
-
-function renderThumbs() {
-  thumbStrip.replaceChildren();
-  thumbStrip.classList.remove("is-empty");
-  thumbStrip.classList.toggle("has-items", selectedFiles.length > 0);
-  const fragment = document.createDocumentFragment();
-
-  selectedFiles.forEach((item, index) => {
-    const thumb = document.createElement("div");
-    thumb.className = "thumb-item";
-
-    const image = document.createElement("img");
-    image.src = item.previewUrl;
-    image.alt = item.file.name;
-
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.className = "thumb-remove";
-    removeButton.textContent = "×";
-    removeButton.title = "删除图片";
-    removeButton.setAttribute("aria-label", `删除 ${item.file.name}`);
-    removeButton.addEventListener("click", event => {
-      event.stopPropagation();
-      removeFile(index);
-    });
-
-    thumb.appendChild(image);
-    thumb.appendChild(removeButton);
-    fragment.appendChild(thumb);
-  });
-
-  thumbStrip.appendChild(fragment);
 }
 
 function renderTemplates() {
@@ -587,6 +554,8 @@ function renderEditablePreview(options = {}) {
     tile.appendChild(image);
     tile.appendChild(removeButton);
     tile.addEventListener("pointerdown", event => beginTileDrag(event, index));
+    tile.addEventListener("pointerenter", () => setHoveredTile(tile));
+    tile.addEventListener("pointerleave", () => clearHoveredTile(tile));
     tile.addEventListener("wheel", event => zoomTileImage(event, index));
     editableCollage.appendChild(tile);
   });
@@ -612,7 +581,7 @@ function getPreviewScale(settings) {
 }
 
 function zoomPreview(event) {
-  if (event.target.closest(".collage-tile") && isImageZoomGesture(event)) {
+  if (event.target.closest(".collage-tile") && canWheelZoomTile(event)) {
     return;
   }
 
@@ -919,7 +888,6 @@ function swapFiles(sourceIndex, targetIndex) {
   const source = selectedFiles[sourceIndex];
   selectedFiles[sourceIndex] = selectedFiles[targetIndex];
   selectedFiles[targetIndex] = source;
-  renderThumbs();
 }
 
 function enterSwapMode(tile) {
@@ -954,7 +922,7 @@ function getTileIndexAt(clientX, clientY, fallbackIndex) {
 }
 
 function zoomTileImage(event, index) {
-  if (!isImageZoomGesture(event)) {
+  if (!canWheelZoomTile(event)) {
     return;
   }
 
@@ -976,8 +944,21 @@ function zoomTileImage(event, index) {
   applyImagePlacement(image, item, rect);
 }
 
-function isImageZoomGesture(event) {
-  return event.ctrlKey || event.altKey || event.shiftKey;
+function setHoveredTile(tile) {
+  hoveredTile = tile;
+  hoveredTileAt = performance.now();
+}
+
+function clearHoveredTile(tile) {
+  if (hoveredTile === tile) {
+    hoveredTile = null;
+    hoveredTileAt = 0;
+  }
+}
+
+function canWheelZoomTile(event) {
+  const tile = event.target.closest(".collage-tile");
+  return tile && tile === hoveredTile && performance.now() - hoveredTileAt > 180;
 }
 
 function applyImagePlacement(image, item, rect) {
