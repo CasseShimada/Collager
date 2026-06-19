@@ -33,7 +33,7 @@ exe 版本会在启动后自动检查 GitHub Release 更新；也可以在托盘
 .\dist\Collager-win-x64.zip
 ```
 
-发布新版时，更新 `MeituCollage.csproj` 中的版本号，创建高于当前版本的 Release tag（例如 `v1.0.1`），并上传 `Collager-win-x64.zip`。已安装的 exe 版本会根据 Release tag 自动更新。
+发布新版时，更新 `MeituCollage.csproj` 中的版本号，创建高于当前版本的 Release tag（例如 `v1.0.1`）并推送到 GitHub。GitHub Actions 会自动编译 `Collager-win-x64.zip` 和 `Collager-Setup.exe`，并发布到对应 Release。已安装的 exe 版本会根据 Release tag 自动更新。
 
 也可以生成可双击安装的安装文件：
 
@@ -48,6 +48,8 @@ exe 版本会在启动后自动检查 GitHub Release 更新；也可以在托盘
 ```
 
 安装器会覆盖安装到当前用户目录 `%LOCALAPPDATA%\Programs\Collager`，并创建开始菜单、桌面快捷方式和卸载项。已有 Collager 正在运行时，安装器会先结束旧进程再覆盖文件。
+
+也可以在 GitHub 仓库的 Actions 页面手动运行 `Release` 工作流，并输入要发布的 tag。
 
 开发或临时使用时，也可以保留命令行入口：
 

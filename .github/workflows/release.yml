@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build portable package
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+
+      - name: Build setup installer
+        shell: pwsh
+        run: ./scripts/build-installer.ps1
+
+      - name: Resolve release tag
+        id: release
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "tag=${{ inputs.tag }}" >> $env:GITHUB_OUTPUT
+          } else {
+            "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ steps.release.outputs.tag }}"
+          $title = "Collager $tag"
+          $notes = @"
+          Collager $tag
+
+          - Windows setup installer for direct installation and overwrite installs
+          - Windows portable package
+          - Automatic update support
+          "@
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit $tag --title $title --notes $notes
+          } else {
+            gh release create $tag --title $title --notes $notes --verify-tag
+          }
+
+          gh release upload $tag dist/Collager-win-x64.zip dist/Collager-Setup.exe --clobber
