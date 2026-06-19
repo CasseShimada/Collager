@@ -15,6 +15,13 @@ const equalGridControl = document.querySelector("#equalGridControl");
 const equalGridRatioValue = document.querySelector("#equalGridRatioValue");
 const editableCollage = document.querySelector("#editableCollage");
 
+const canvasPresets = {
+  Auto: [1080, 1920],
+  Square: [1080, 1080],
+  Portrait: [1080, 1920],
+  Landscape: [1920, 1080]
+};
+
 const templates = {
   2: [
     template("2-vsplit", "竖分", [[0, 0, 3, 6], [3, 0, 3, 6]]),
@@ -187,6 +194,10 @@ settingsForm.addEventListener("input", event => {
 
 settingsForm.addEventListener("change", event => {
   if (["mode", "template"].includes(event.target.name)) {
+    if (event.target.name === "mode") {
+      applyCanvasMode(event.target.value);
+    }
+
     resetPlacements();
     schedulePreviewRender();
   }
@@ -323,6 +334,7 @@ function updateSelectionStatus(skippedDuplicates = 0, skippedLimit = 0) {
 
 function renderThumbs() {
   thumbStrip.replaceChildren();
+  thumbStrip.classList.toggle("is-empty", selectedFiles.length === 0);
   const fragment = document.createDocumentFragment();
 
   selectedFiles.forEach((item, index) => {
@@ -1090,8 +1102,8 @@ function getContentBounds(settings) {
 function getSettings() {
   const formData = new FormData(settingsForm);
   return {
-    width: readNumber(formData, "width", 1600),
-    height: readNumber(formData, "height", 1200),
+    width: readNumber(formData, "width", 1080),
+    height: readNumber(formData, "height", 1920),
     gap: readNumber(formData, "gap", 18),
     padding: readNumber(formData, "padding", 28),
     radius: readNumber(formData, "radius", 18),
@@ -1104,6 +1116,16 @@ function getSettings() {
 function readNumber(formData, key, fallback) {
   const value = Number(formData.get(key));
   return Number.isFinite(value) ? value : fallback;
+}
+
+function applyCanvasMode(mode) {
+  const preset = canvasPresets[mode];
+  if (!preset) {
+    return;
+  }
+
+  settingsForm.elements.width.value = String(preset[0]);
+  settingsForm.elements.height.value = String(preset[1]);
 }
 
 function resetPlacements() {

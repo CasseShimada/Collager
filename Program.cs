@@ -78,8 +78,8 @@ app.MapPost("/api/collage", async (HttpRequest request, CollageRenderer renderer
 
     var options = new CollageOptions
     {
-        OutputWidth = ReadInt(form, "width", 1600, 400, 6000),
-        OutputHeight = ReadInt(form, "height", 1200, 400, 6000),
+        OutputWidth = ReadInt(form, "width", 1080, 400, 6000),
+        OutputHeight = ReadInt(form, "height", 1920, 400, 6000),
         Gap = ReadInt(form, "gap", 18, 0, 120),
         OuterPadding = ReadInt(form, "padding", 28, 0, 200),
         CornerRadius = ReadInt(form, "radius", 18, 0, 80),

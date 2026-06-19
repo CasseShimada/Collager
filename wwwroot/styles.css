@@ -127,6 +127,10 @@ p {
   min-height: 66px;
 }
 
+.thumb-strip.is-empty {
+  display: none;
+}
+
 .thumb-item {
   position: relative;
   min-width: 0;

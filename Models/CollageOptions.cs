@@ -4,9 +4,9 @@ namespace MeiTool.Models;
 
 public sealed class CollageOptions
 {
-    public int OutputWidth { get; init; } = 1600;
+    public int OutputWidth { get; init; } = 1080;
 
-    public int OutputHeight { get; init; } = 1200;
+    public int OutputHeight { get; init; } = 1920;
 
     public int Gap { get; init; } = 18;
 
