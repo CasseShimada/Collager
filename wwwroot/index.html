@@ -85,9 +85,17 @@
               <strong id="statusTitle">等待图片</strong>
               <span id="statusText">选择图片后生成预览</span>
             </div>
-            <a class="download-button is-disabled" id="downloadLink" download="__APP_NAME__.png">下载 PNG</a>
+            <div class="preview-actions">
+              <div class="preview-zoom-controls" aria-label="预览缩放">
+                <button class="zoom-button" id="previewZoomOut" type="button" title="缩小预览" aria-label="缩小预览">-</button>
+                <button class="zoom-button zoom-value" id="previewZoomFit" type="button" title="适合窗口" aria-label="适合窗口">适合</button>
+                <button class="zoom-button" id="previewZoomIn" type="button" title="放大预览" aria-label="放大预览">+</button>
+                <span id="previewZoomLabel">--</span>
+              </div>
+              <a class="download-button is-disabled" id="downloadLink" download="__APP_NAME__.png">下载 PNG</a>
+            </div>
           </div>
-          <div class="preview-stage">
+          <div class="preview-stage" id="previewStage">
             <div class="empty-state" id="emptyState">
               <span>+</span>
               <p>图片会在这里预览</p>

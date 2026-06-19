@@ -17,22 +17,26 @@
 }
 
 body {
+  height: 100vh;
   min-width: 320px;
   margin: 0;
+  overflow: hidden;
   color: var(--text);
   background: var(--bg);
 }
 
 .app-shell {
-  min-height: 100vh;
-  padding: 22px;
+  height: 100vh;
+  padding: 12px;
+  overflow: hidden;
 }
 
 .workspace {
   display: grid;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
-  gap: 18px;
-  min-height: calc(100vh - 44px);
+  gap: 12px;
+  height: calc(100vh - 24px);
+  min-height: 0;
 }
 
 .sidebar,
@@ -45,7 +49,9 @@ body {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
   padding: 18px;
 }
 
@@ -394,6 +400,7 @@ a:focus-visible {
 }
 
 .preview-toolbar {
+  min-width: 0;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -401,6 +408,57 @@ a:focus-visible {
 .preview-toolbar strong,
 .preview-toolbar span {
   display: block;
+}
+
+.preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.preview-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.zoom-button {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.zoom-button:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.zoom-button:disabled {
+  cursor: default;
+  opacity: .55;
+}
+
+.zoom-value {
+  min-width: 46px;
+  padding: 0 8px;
+}
+
+#previewZoomLabel {
+  min-width: 42px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
 }
 
 .download-button {
@@ -415,10 +473,8 @@ a:focus-visible {
 
 .preview-stage {
   position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 420px;
-  padding: 18px;
+  min-height: 0;
+  padding: 16px;
   overflow: auto;
   background:
     linear-gradient(45deg, #f7f8fa 25%, transparent 25%),
@@ -433,6 +489,7 @@ a:focus-visible {
   position: relative;
   display: none;
   flex: none;
+  margin: 0 auto;
   border: 1px solid var(--line);
   box-shadow: 0 16px 42px rgba(31, 41, 51, .18);
 }
@@ -485,6 +542,8 @@ a:focus-visible {
 }
 
 .empty-state {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   gap: 8px;
@@ -507,13 +566,25 @@ a:focus-visible {
 }
 
 @media (max-width: 900px) {
+  body {
+    height: auto;
+    overflow: auto;
+  }
+
   .app-shell {
+    height: auto;
     padding: 12px;
+    overflow: visible;
   }
 
   .workspace {
     grid-template-columns: 1fr;
+    height: auto;
     min-height: auto;
+  }
+
+  .sidebar {
+    overflow: visible;
   }
 
   .preview-stage {
@@ -528,6 +599,11 @@ a:focus-visible {
   }
 
   .preview-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .preview-actions {
     align-items: stretch;
     flex-direction: column;
   }

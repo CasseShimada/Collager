@@ -13,6 +13,11 @@ const templateInput = document.querySelector("#templateInput");
 const templateCountLabel = document.querySelector("#templateCountLabel");
 const equalGridControl = document.querySelector("#equalGridControl");
 const equalGridRatioValue = document.querySelector("#equalGridRatioValue");
+const previewStage = document.querySelector("#previewStage");
+const previewZoomOut = document.querySelector("#previewZoomOut");
+const previewZoomFit = document.querySelector("#previewZoomFit");
+const previewZoomIn = document.querySelector("#previewZoomIn");
+const previewZoomLabel = document.querySelector("#previewZoomLabel");
 const editableCollage = document.querySelector("#editableCollage");
 
 const canvasPresets = {
@@ -147,10 +152,15 @@ const templates = {
 let selectedFiles = [];
 let previewUrl = null;
 let currentLayout = [];
+let previewZoom = 1;
+let fitPreviewZoom = 1;
+let isPreviewZoomManual = false;
 let dragState = null;
 let renderTimer = null;
 let exportTimer = null;
 const longPressMs = 450;
+const minPreviewZoom = 0.12;
+const maxPreviewZoom = 2.5;
 
 renderTemplates();
 
@@ -188,6 +198,9 @@ settingsForm.addEventListener("submit", async event => {
 settingsForm.addEventListener("input", event => {
   if (["width", "height", "gap", "padding", "radius", "background", "equalGridRatio"].includes(event.target.name)) {
     updateEqualGridControl();
+    if (["width", "height", "gap", "padding", "equalGridRatio"].includes(event.target.name)) {
+      resetPreviewZoom();
+    }
     schedulePreviewRender();
   }
 });
@@ -199,11 +212,17 @@ settingsForm.addEventListener("change", event => {
     }
 
     resetPlacements();
+    resetPreviewZoom();
     schedulePreviewRender();
   }
 });
 
 window.addEventListener("resize", schedulePreviewRender);
+
+previewStage.addEventListener("wheel", zoomPreview);
+previewZoomOut.addEventListener("click", () => stepPreviewZoom(-1));
+previewZoomIn.addEventListener("click", () => stepPreviewZoom(1));
+previewZoomFit.addEventListener("click", fitPreviewToStage);
 
 function template(id, name, cells, columns = 6, rows = 6) {
   return { id, name, cells, columns, rows };
@@ -309,6 +328,7 @@ function removeFile(index) {
 }
 
 function updateSelectionState(skippedDuplicates = 0, skippedLimit = 0) {
+  resetPreviewZoom();
   renderThumbs();
   renderTemplates();
   resetPreview();
@@ -372,6 +392,7 @@ function renderTemplates() {
     templateInput.value = "auto";
     templateCountLabel.textContent = "自动";
     updateEqualGridControl();
+    updatePreviewZoomControls();
     const message = document.createElement("p");
     message.className = "template-empty";
     message.textContent = "选择图片后显示对应模板。";
@@ -397,6 +418,7 @@ function renderTemplates() {
     button.addEventListener("click", () => {
       templateInput.value = item.id;
       resetPlacements();
+      resetPreviewZoom();
       renderTemplates();
       schedulePreviewRender();
     });
@@ -459,10 +481,7 @@ function renderEditablePreview() {
     return;
   }
 
-  const stage = editableCollage.parentElement;
-  const maxWidth = Math.max(280, stage.clientWidth - 36);
-  const maxHeight = Math.max(280, stage.clientHeight - 36);
-  const scale = Math.min(1, maxWidth / settings.width, maxHeight / settings.height);
+  const scale = getPreviewScale(settings);
   editableCollage.style.width = `${settings.width * scale}px`;
   editableCollage.style.height = `${settings.height * scale}px`;
   editableCollage.style.background = settings.background;
@@ -500,7 +519,86 @@ function renderEditablePreview() {
   });
 
   statusTitle.textContent = "可编辑预览";
-  statusText.textContent = "滚轮缩放，拖动裁剪，长按后拖动可交换";
+  statusText.textContent = "空白处滚轮缩放预览，格子上滚轮缩放图片";
+}
+
+function getPreviewScale(settings) {
+  const maxWidth = Math.max(180, previewStage.clientWidth - 32);
+  const maxHeight = Math.max(180, previewStage.clientHeight - 32);
+  fitPreviewZoom = clamp(Math.min(maxWidth / settings.width, maxHeight / settings.height), minPreviewZoom, 1);
+
+  if (!isPreviewZoomManual) {
+    previewZoom = fitPreviewZoom;
+  }
+
+  previewZoom = clamp(previewZoom, minPreviewZoom, maxPreviewZoom);
+  updatePreviewZoomControls();
+  return previewZoom;
+}
+
+function zoomPreview(event) {
+  if (event.target.closest(".collage-tile")) {
+    return;
+  }
+
+  event.preventDefault();
+  setPreviewZoom(previewZoom * (event.deltaY < 0 ? 1.12 : 1 / 1.12), event.clientX, event.clientY);
+}
+
+function stepPreviewZoom(direction) {
+  const center = getStageCenter();
+  setPreviewZoom(previewZoom * (direction > 0 ? 1.18 : 1 / 1.18), center.x, center.y);
+}
+
+function fitPreviewToStage() {
+  isPreviewZoomManual = false;
+  renderEditablePreview();
+}
+
+function setPreviewZoom(nextZoom, clientX, clientY) {
+  if (selectedFiles.length === 0) {
+    return;
+  }
+
+  const previousZoom = previewZoom;
+  previewZoom = clamp(nextZoom, minPreviewZoom, maxPreviewZoom);
+  isPreviewZoomManual = Math.abs(previewZoom - fitPreviewZoom) > 0.01;
+
+  if (Math.abs(previewZoom - previousZoom) < 0.001) {
+    updatePreviewZoomControls();
+    return;
+  }
+
+  const before = getStagePoint(clientX, clientY);
+  renderEditablePreview();
+  const ratio = previewZoom / previousZoom;
+  previewStage.scrollLeft = before.scrollLeft * ratio - before.offsetX;
+  previewStage.scrollTop = before.scrollTop * ratio - before.offsetY;
+}
+
+function getStagePoint(clientX, clientY) {
+  const rect = previewStage.getBoundingClientRect();
+  return {
+    offsetX: clientX - rect.left,
+    offsetY: clientY - rect.top,
+    scrollLeft: previewStage.scrollLeft + clientX - rect.left,
+    scrollTop: previewStage.scrollTop + clientY - rect.top
+  };
+}
+
+function getStageCenter() {
+  const rect = previewStage.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
+  };
+}
+
+function updatePreviewZoomControls() {
+  previewZoomLabel.textContent = selectedFiles.length ? `${Math.round(previewZoom * 100)}%` : "--";
+  previewZoomOut.disabled = selectedFiles.length === 0 || previewZoom <= minPreviewZoom + 0.005;
+  previewZoomIn.disabled = selectedFiles.length === 0 || previewZoom >= maxPreviewZoom - 0.005;
+  previewZoomFit.disabled = selectedFiles.length === 0 || !isPreviewZoomManual;
 }
 
 function createAutoTemplateOption() {
@@ -1136,6 +1234,12 @@ function resetPlacements() {
   });
 }
 
+function resetPreviewZoom() {
+  previewZoom = fitPreviewZoom || 1;
+  isPreviewZoomManual = false;
+  updatePreviewZoomControls();
+}
+
 function resetPreview() {
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl);
@@ -1149,6 +1253,7 @@ function resetPreview() {
   downloadLink.removeAttribute("href");
   downloadLink.classList.add("is-disabled");
   emptyState.classList.remove("is-hidden");
+  resetPreviewZoom();
 }
 
 function clamp(value, min, max) {
