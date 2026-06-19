@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Http.Features;
 using System.Globalization;
 using System.Text.Json;
 
+var configService = new AppConfigService();
 var builder = WebApplication.CreateBuilder(Array.Empty<string>());
 const long MaxUploadBytes = 256L * 1024 * 1024;
 
-builder.WebHost.UseUrls("http://localhost:5123");
+builder.WebHost.UseUrls($"http://localhost:{configService.Current.Port}");
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = MaxUploadBytes;
@@ -15,6 +16,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddSingleton<CollageRenderer>();
 builder.Services.AddSingleton<AppUpdateService>();
+builder.Services.AddSingleton(configService);
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = MaxUploadBytes;
@@ -116,6 +118,16 @@ app.MapPost("/api/update/install", async (AppUpdateService updateService, Cancel
     return Results.Ok(info);
 });
 
+app.MapGet("/api/config", (AppConfigService config) =>
+{
+    return Results.Ok(config.Current);
+});
+
+app.MapPost("/api/config", (AppConfig next, AppConfigService config) =>
+{
+    return Results.Ok(config.Update(next));
+});
+
 app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
 {
     if (Path.HasExtension(context.Request.Path))
@@ -129,7 +141,7 @@ app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
     return Results.Content(html, "text/html");
 });
 
-using var trayIcon = new TrayIconService(app);
+using var trayIcon = new TrayIconService(app, configService);
 trayIcon.Start();
 app.Lifetime.ApplicationStarted.Register(trayIcon.OpenApp);
 

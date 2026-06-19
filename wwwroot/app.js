@@ -159,12 +159,13 @@ let isPreviewZoomManual = false;
 let dragState = null;
 let renderTimer = null;
 let buttonMessageTimer = null;
+let configSaveTimer = null;
+let appConfig = null;
 const longPressMs = 450;
 const minPreviewZoom = 0.12;
 const maxPreviewZoom = 2.5;
 
-renderTemplates();
-checkForUpdates();
+initializeApp();
 
 fileInput.addEventListener("change", () => {
   addFiles([...fileInput.files]);
@@ -203,6 +204,7 @@ settingsForm.addEventListener("input", event => {
     if (["width", "height", "gap", "padding", "equalGridRatio"].includes(event.target.name)) {
       resetPreviewZoom();
     }
+    scheduleConfigSave();
     schedulePreviewRender();
   }
 });
@@ -215,6 +217,7 @@ settingsForm.addEventListener("change", event => {
 
     resetPlacements();
     resetPreviewZoom();
+    scheduleConfigSave();
     schedulePreviewRender();
   }
 });
@@ -229,6 +232,89 @@ installUpdateButton.addEventListener("click", installUpdate);
 
 function template(id, name, cells, columns = 6, rows = 6) {
   return { id, name, cells, columns, rows };
+}
+
+async function initializeApp() {
+  await loadConfig();
+  renderTemplates();
+  checkForUpdates();
+}
+
+async function loadConfig() {
+  try {
+    const response = await fetch("/api/config");
+    if (!response.ok) {
+      return;
+    }
+
+    appConfig = await response.json();
+    applySavedSettings(appConfig.settings);
+  } catch {
+  }
+}
+
+function applySavedSettings(settings) {
+  if (!settings) {
+    return;
+  }
+
+  settingsForm.elements.width.value = String(settings.width ?? 1080);
+  settingsForm.elements.height.value = String(settings.height ?? 1920);
+  settingsForm.elements.gap.value = String(settings.gap ?? 18);
+  settingsForm.elements.padding.value = String(settings.padding ?? 28);
+  settingsForm.elements.radius.value = String(settings.radius ?? 18);
+  settingsForm.elements.background.value = settings.background || "#ffffff";
+  settingsForm.elements.equalGridRatio.value = String(settings.equalGridRatio ?? 1);
+  templateInput.value = settings.template || "auto";
+
+  const mode = settings.mode || "Portrait";
+  const modeInput = settingsForm.querySelector(`input[name="mode"][value="${mode}"]`);
+  if (modeInput) {
+    modeInput.checked = true;
+  }
+
+  updateEqualGridControl();
+  resetPreviewZoom();
+}
+
+function scheduleConfigSave() {
+  clearTimeout(configSaveTimer);
+  configSaveTimer = window.setTimeout(saveConfig, 350);
+}
+
+async function saveConfig() {
+  const nextConfig = {
+    port: appConfig?.port || 5123,
+    settings: readSettingsConfig()
+  };
+
+  try {
+    const response = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(nextConfig)
+    });
+
+    if (response.ok) {
+      appConfig = await response.json();
+    }
+  } catch {
+  }
+}
+
+function readSettingsConfig() {
+  const formData = new FormData(settingsForm);
+  return {
+    width: readNumber(formData, "width", 1080),
+    height: readNumber(formData, "height", 1920),
+    gap: readNumber(formData, "gap", 18),
+    padding: readNumber(formData, "padding", 28),
+    radius: readNumber(formData, "radius", 18),
+    background: formData.get("background") || "#ffffff",
+    mode: formData.get("mode") || "Portrait",
+    template: templateInput.value || "auto",
+    equalGridRatio: readNumber(formData, "equalGridRatio", 1)
+  };
 }
 
 async function checkForUpdates() {
@@ -474,6 +560,7 @@ function renderTemplates() {
       resetPlacements();
       resetPreviewZoom();
       renderTemplates();
+      scheduleConfigSave();
       schedulePreviewRender();
     });
 

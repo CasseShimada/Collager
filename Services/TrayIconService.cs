@@ -7,13 +7,15 @@ namespace MeiTool.Services;
 public sealed class TrayIconService : IDisposable
 {
     private readonly WebApplication _app;
+    private readonly AppConfigService _config;
     private readonly Thread _thread;
     private TrayApplicationContext? _context;
     private bool _disposed;
 
-    public TrayIconService(WebApplication app)
+    public TrayIconService(WebApplication app, AppConfigService config)
     {
         _app = app;
+        _config = config;
         _thread = new Thread(RunTray)
         {
             IsBackground = true,
@@ -38,7 +40,7 @@ public sealed class TrayIconService : IDisposable
 
     public void OpenApp()
     {
-        var url = _app.Urls.FirstOrDefault() ?? "http://localhost:5123";
+        var url = _app.Urls.FirstOrDefault() ?? $"http://localhost:{_config.Current.Port}";
         Process.Start(new ProcessStartInfo
         {
             FileName = url,
