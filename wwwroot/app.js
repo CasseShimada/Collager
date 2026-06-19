@@ -501,7 +501,23 @@ function renderEditablePreview() {
     image.addEventListener("load", () => applyImagePlacement(image, item, displayRect));
     applyImagePlacement(image, item, displayRect);
 
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "tile-remove";
+    removeButton.textContent = "×";
+    removeButton.title = "删除图片";
+    removeButton.setAttribute("aria-label", `删除 ${item.file.name}`);
+    removeButton.addEventListener("pointerdown", event => {
+      event.stopPropagation();
+    });
+    removeButton.addEventListener("click", event => {
+      event.stopPropagation();
+      removeFile(index);
+      showGenerateButtonMessage("已删除图片");
+    });
+
     tile.appendChild(image);
+    tile.appendChild(removeButton);
     tile.addEventListener("pointerdown", event => beginTileDrag(event, index));
     tile.addEventListener("wheel", event => zoomTileImage(event, index));
     editableCollage.appendChild(tile);
