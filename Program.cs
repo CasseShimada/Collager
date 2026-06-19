@@ -17,6 +17,7 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 builder.Services.AddSingleton<CollageRenderer>();
+builder.Services.AddSingleton<AppUpdateService>();
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = MaxUploadBytes;
@@ -118,12 +119,22 @@ app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
     return Results.Content(html, "text/html");
 });
 
-using var trayIcon = new TrayIconService(app);
+var updates = app.Services.GetRequiredService<AppUpdateService>();
+using var trayIcon = new TrayIconService(app, updates);
 trayIcon.Start();
 if (openBrowserOnStart)
 {
     app.Lifetime.ApplicationStarted.Register(trayIcon.OpenApp);
 }
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(TimeSpan.FromSeconds(8));
+        await updates.CheckAndInstallAsync(AppUpdateCheckReason.Automatic);
+    });
+});
 
 app.Run();
 

@@ -13,6 +13,7 @@ Collager.exe
 ```
 
 双击后 Collager 会静默启动本地服务，不显示命令行窗口；随后打开浏览器页面，并在 Windows 右下角托盘显示快捷入口。可以从托盘菜单再次打开页面或退出程序。
+exe 版本会在启动后自动检查 GitHub Release 更新；也可以在托盘菜单中点击“检查更新”。发现新版本后会下载更新包、重启程序并替换本地文件。
 
 如果你拿到的是源码，可以先在项目目录中打包：
 
@@ -25,6 +26,14 @@ Collager.exe
 ```text
 .\dist\Collager\Collager.exe
 ```
+
+打包脚本还会生成可上传到 GitHub Release 的更新包：
+
+```text
+.\dist\Collager-win-x64.zip
+```
+
+发布新版时，更新 `MeituCollage.csproj` 中的版本号，创建高于当前版本的 Release tag（例如 `v1.0.1`），并上传 `Collager-win-x64.zip`。已安装的 exe 版本会根据 Release tag 自动更新。
 
 开发或临时使用时，也可以保留命令行入口：
 

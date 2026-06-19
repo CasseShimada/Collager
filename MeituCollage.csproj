@@ -7,6 +7,10 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Collager</AssemblyName>
     <RootNamespace>MeiTool</RootNamespace>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <RepositoryUrl>https://github.com/CasseShimada/Collager</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
