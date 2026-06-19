@@ -1,102 +1,56 @@
 # Collager
 
-Collager 是一款本地运行的图片拼图工具，用来把多张图片快速整理成一张清晰、可下载的 PNG 拼图。
+Collager 是一款本地运行的图片拼图工具，用来把多张图片整理成一张清晰的 PNG 拼图。
 
-它适合整理截图、作品集、参考图、旅行照片或社交媒体配图。图片在本机处理，浏览器负责选择图片、预览布局和调整细节；你可以使用自动排版，也可以切换到固定模板或等格网格，让大量图片保持整齐。
+图片在本机处理，浏览器只作为操作界面使用。你可以选择自动网格、等格网格或按图片数量显示的模板，在预览中调整裁剪、缩放、交换和删除图片，然后一键生成下载。
+
+Collager 是免费开源软件，仅在 GitHub 免费发布。任何公开售卖 Collager 的行为均为骗局。遇到 bug 或有建议，可以通过 GitHub Issue 反馈。
 
 ## 启动 Collager
 
-普通用户可以直接双击已打包文件夹中的程序：
+推荐下载并运行 GitHub Release 中的安装文件：
+
+```text
+Collager-Setup.exe
+```
+
+安装后从桌面快捷方式或开始菜单打开 Collager。
+
+如果拿到的是免安装文件夹，请双击：
 
 ```text
 Collager.exe
 ```
 
-双击后 Collager 会静默启动本地服务，不显示命令行窗口；随后打开浏览器页面，并在 Windows 右下角托盘显示快捷入口。可以从托盘菜单再次打开页面或退出程序。
-exe 版本会在浏览器页面提示 GitHub Release 更新，不会强制更新；只有点击“立即更新”后才会下载更新包、重启程序并替换本地文件。
+启动后 Collager 会静默运行本地服务，不显示命令行窗口，并自动打开浏览器页面。Windows 右下角托盘会显示 Collager 图标，可以从托盘菜单重新打开页面或退出程序。
 
-Collager 是免费开源软件，仅在 GitHub 免费发布。任何公开售卖 Collager 的行为均为骗局。遇到 bug 或有建议，可以通过 GitHub Issue 反馈。
+正式打包版本不提供命令行启动入口，不需要传入端口或后台参数。
 
-如果你拿到的是源码，可以先在项目目录中打包：
+## 通过 GitHub 更新
 
-```powershell
-.\scripts\package-windows.ps1
-```
+Collager 会在浏览器页面提示 GitHub Release 更新，但不会强制更新。只有点击页面中的“立即更新”后，才会下载更新包、重启程序并替换本地文件。
 
-打包完成后运行：
+也可以手动更新：
 
-```text
-.\dist\Collager\Collager.exe
-```
+1. 打开 [GitHub Releases](https://github.com/CasseShimada/Collager/releases)。
+2. 下载最新版 `Collager-Setup.exe`。
+3. 双击安装文件覆盖安装已有版本。
 
-打包脚本还会生成可上传到 GitHub Release 的更新包：
+开发者发布新版时，更新 `MeituCollage.csproj` 中的版本号，创建高于当前版本的 tag，例如 `v1.0.1`，并推送到 GitHub。GitHub Actions 会自动编译 `Collager-win-x64.zip` 和 `Collager-Setup.exe`，并发布到对应 Release。
 
-```text
-.\dist\Collager-win-x64.zip
-```
+## 使用方法
 
-发布新版时，更新 `MeituCollage.csproj` 中的版本号，创建高于当前版本的 Release tag（例如 `v1.0.1`）并推送到 GitHub。GitHub Actions 会自动编译 `Collager-win-x64.zip` 和 `Collager-Setup.exe`，并发布到对应 Release。已安装的 exe 版本会根据 Release tag 自动更新。
-
-也可以生成可双击安装的安装文件：
-
-```powershell
-.\scripts\build-installer.ps1
-```
-
-生成位置：
-
-```text
-.\dist\Collager-Setup.exe
-```
-
-安装器会覆盖安装到当前用户目录 `%LOCALAPPDATA%\Programs\Collager`，并创建开始菜单、桌面快捷方式和卸载项。已有 Collager 正在运行时，安装器会先结束旧进程再覆盖文件。
-
-也可以在 GitHub 仓库的 Actions 页面手动运行 `Release` 工作流，并输入要发布的 tag。
-
-开发或临时使用时，也可以保留命令行入口：
-
-```powershell
-dotnet run --urls http://localhost:5123
-```
-
-然后在浏览器打开：
-
-```text
-http://localhost:5123
-```
-
-如果希望后台隐藏窗口运行已打包版本：
-
-```powershell
-Start-Process -WindowStyle Hidden `
-  -FilePath ".\dist\Collager\Collager.exe" `
-  -ArgumentList "--urls", "http://localhost:5123", "--no-open"
-```
-
-也可以直接给 exe 传入命令行参数：
-
-```powershell
-.\dist\Collager\Collager.exe --urls http://localhost:5123
-```
-
-停止后台进程：
-
-```powershell
-Stop-Process -Name Collager
-```
-
-## 用户端使用方式
-
-1. 启动 Collager。
-2. 在浏览器中打开 Collager 页面。
-3. 拖入图片，或点击选择图片。可以继续追加图片，重复图片会自动跳过。
-4. 在左侧选择排版方式：
-   - 自动网格：根据图片比例自动组织布局。
+1. 启动 Collager，等待浏览器页面打开。
+2. 拖入图片，或点击选择图片。可以继续追加图片，重复图片会自动跳过。
+3. 在左侧选择排版方式：
+   - 自动网格：根据图片原始比例自动组织布局。
    - 等格网格：所有图片使用相同大小的格子，可调整格子比例。
-   - 模板：按当前图片数量选择预设版式。
+   - 模板：按当前图片数量显示对应模板。
+4. 设置画布比例、宽度、高度、间距、边距、圆角和背景色。默认画布为竖版 1080 x 1920。
 5. 在右侧预览中调整图片：
-   - 滚轮缩放图片。
+   - 空白处滚轮缩放整个预览。
+   - 悬浮在图片上滚轮缩放该图片裁剪。
    - 拖动图片调整裁剪位置。
    - 长按后拖动可交换图片位置。
-6. 设置画布比例、宽度、高度、间距、边距、圆角和背景色。默认画布为竖版 1080 x 1920。
-7. 点击“下载 PNG”保存最终拼图。
+   - 悬浮在图片上点击右上角 `×` 删除图片。
+6. 点击“生成拼图”，Collager 会直接下载 PNG 文件。

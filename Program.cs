@@ -4,13 +4,10 @@ using Microsoft.AspNetCore.Http.Features;
 using System.Globalization;
 using System.Text.Json;
 
-var appArgs = args
-    .Where(argument => !string.Equals(argument, "--no-open", StringComparison.OrdinalIgnoreCase))
-    .ToArray();
-var openBrowserOnStart = appArgs.Length == args.Length;
-var builder = WebApplication.CreateBuilder(appArgs);
+var builder = WebApplication.CreateBuilder(Array.Empty<string>());
 const long MaxUploadBytes = 256L * 1024 * 1024;
 
+builder.WebHost.UseUrls("http://localhost:5123");
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = MaxUploadBytes;
@@ -134,10 +131,7 @@ app.MapFallback(async (HttpContext context, IWebHostEnvironment environment) =>
 
 using var trayIcon = new TrayIconService(app);
 trayIcon.Start();
-if (openBrowserOnStart)
-{
-    app.Lifetime.ApplicationStarted.Register(trayIcon.OpenApp);
-}
+app.Lifetime.ApplicationStarted.Register(trayIcon.OpenApp);
 
 app.Lifetime.ApplicationStarted.Register(() =>
 {
