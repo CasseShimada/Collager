@@ -377,6 +377,29 @@ a:focus-visible {
   opacity: .7;
 }
 
+.floating-message {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 10px;
+  border: 1px solid rgba(31, 41, 51, .12);
+  border-radius: 8px;
+  background: rgba(31, 41, 51, .92);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.35;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 10px 24px rgba(31, 41, 51, .22);
+  transition: opacity 120ms ease;
+}
+
+.floating-message.is-visible {
+  opacity: 1;
+}
+
 .project-panel {
   display: grid;
   gap: 10px;

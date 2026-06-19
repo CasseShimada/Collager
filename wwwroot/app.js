@@ -39,12 +39,11 @@ let isPreviewZoomManual = true;
 let hasRenderedPreview = false;
 let dragState = null;
 let previewPanState = null;
-let hoveredTile = null;
-let hoveredTileAt = 0;
 let renderTimer = null;
-let buttonMessageTimer = null;
+let floatingMessageTimer = null;
 let configSaveTimer = null;
 let appConfig = null;
+let lastPointerPosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 const longPressMs = 450;
 const minPreviewZoom = 0.12;
 const maxPreviewZoom = 2.5;
@@ -103,6 +102,7 @@ settingsForm.addEventListener("change", event => {
 });
 
 window.addEventListener("resize", schedulePreviewRender);
+window.addEventListener("pointermove", updatePointerPosition, { passive: true });
 
 previewStage.addEventListener("wheel", zoomPreview);
 previewStage.addEventListener("pointerdown", beginPreviewPan);
@@ -396,7 +396,7 @@ function updateSelectionState(skippedDuplicates = 0) {
 
 function updateSelectionStatus(skippedDuplicates = 0) {
   if (skippedDuplicates > 0) {
-    showGenerateButtonMessage(`跳过 ${skippedDuplicates} 张重复图片`);
+    showFloatingMessage(`跳过 ${skippedDuplicates} 张重复图片`);
   }
 }
 
@@ -481,7 +481,7 @@ function createTemplatePreview(item) {
 
 async function generateCollage() {
   if (selectedFiles.length === 0) {
-    showGenerateButtonMessage("请先选择图片");
+    showFloatingMessage("请先选择图片");
     return;
   }
 
@@ -548,14 +548,12 @@ function renderEditablePreview(options = {}) {
     removeButton.addEventListener("click", event => {
       event.stopPropagation();
       removeFile(index);
-      showGenerateButtonMessage("已删除图片");
+      showFloatingMessage("已删除图片", event);
     });
 
     tile.appendChild(image);
     tile.appendChild(removeButton);
     tile.addEventListener("pointerdown", event => beginTileDrag(event, index));
-    tile.addEventListener("pointerenter", () => setHoveredTile(tile));
-    tile.addEventListener("pointerleave", () => clearHoveredTile(tile));
     tile.addEventListener("wheel", event => zoomTileImage(event, index));
     editableCollage.appendChild(tile);
   });
@@ -857,9 +855,9 @@ function endTileDrag(event) {
     selectedFiles[sourceIndex].scale = dragState.scale;
     swapFiles(sourceIndex, targetIndex);
     renderEditablePreview();
-    showGenerateButtonMessage("已交换图片");
+    showFloatingMessage("已交换图片", event);
   } else if (dragState.moved) {
-    showGenerateButtonMessage("已调整裁剪");
+    showFloatingMessage("已调整裁剪", event);
   }
 
   dragState = null;
@@ -897,7 +895,7 @@ function enterSwapMode(tile) {
 
   dragState.swapMode = true;
   tile.classList.add("is-swap-source");
-  showGenerateButtonMessage("拖到另一格交换");
+  showFloatingMessage("拖到另一格交换");
   updateSwapHover(dragState.lastX, dragState.lastY, dragState.index);
 }
 
@@ -944,21 +942,8 @@ function zoomTileImage(event, index) {
   applyImagePlacement(image, item, rect);
 }
 
-function setHoveredTile(tile) {
-  hoveredTile = tile;
-  hoveredTileAt = performance.now();
-}
-
-function clearHoveredTile(tile) {
-  if (hoveredTile === tile) {
-    hoveredTile = null;
-    hoveredTileAt = 0;
-  }
-}
-
 function canWheelZoomTile(event) {
-  const tile = event.target.closest(".collage-tile");
-  return tile && tile === hoveredTile && performance.now() - hoveredTileAt > 180;
+  return Boolean(event.target.closest(".collage-tile"));
 }
 
 function applyImagePlacement(image, item, rect) {
@@ -1047,15 +1032,15 @@ async function exportAndDownload() {
 
     const blob = await response.blob();
     downloadBlob(blob);
-    showGenerateButtonMessage("已开始下载");
+    showFloatingMessage("已开始下载");
   } catch (error) {
-    showGenerateButtonMessage("生成失败");
+    showFloatingMessage("生成失败");
     console.error(error.message === "Failed to fetch"
       ? "图片数据较大或服务暂时不可用，请稍后重试。"
       : error.message);
   } finally {
     generateButton.disabled = false;
-    resetGenerateButtonTextLater();
+    generateButton.textContent = "生成拼图";
   }
 }
 
@@ -1087,19 +1072,44 @@ function sanitizeFileName(value) {
     .trim();
 }
 
-function showGenerateButtonMessage(message) {
-  clearTimeout(buttonMessageTimer);
-  generateButton.textContent = message;
-  resetGenerateButtonTextLater();
+function updatePointerPosition(event) {
+  lastPointerPosition = { x: event.clientX, y: event.clientY };
+  moveFloatingMessage(lastPointerPosition.x, lastPointerPosition.y);
 }
 
-function resetGenerateButtonTextLater() {
-  clearTimeout(buttonMessageTimer);
-  buttonMessageTimer = window.setTimeout(() => {
-    if (!generateButton.disabled) {
-      generateButton.textContent = "生成拼图";
-    }
-  }, 1600);
+function showFloatingMessage(message, event) {
+  const position = event
+    ? { x: event.clientX, y: event.clientY }
+    : lastPointerPosition;
+  let bubble = document.querySelector("#floatingMessage");
+  if (!bubble) {
+    bubble = document.createElement("div");
+    bubble.id = "floatingMessage";
+    bubble.className = "floating-message";
+    document.body.appendChild(bubble);
+  }
+
+  clearTimeout(floatingMessageTimer);
+  bubble.textContent = message;
+  bubble.classList.add("is-visible");
+  moveFloatingMessage(position.x, position.y);
+  floatingMessageTimer = window.setTimeout(() => {
+    bubble.classList.remove("is-visible");
+  }, 1500);
+}
+
+function moveFloatingMessage(x, y) {
+  const bubble = document.querySelector("#floatingMessage");
+  if (!bubble || !bubble.classList.contains("is-visible")) {
+    return;
+  }
+
+  const margin = 12;
+  const offset = 18;
+  const rect = bubble.getBoundingClientRect();
+  const left = clamp(x + offset, margin, window.innerWidth - rect.width - margin);
+  const top = clamp(y + offset, margin, window.innerHeight - rect.height - margin);
+  bubble.style.transform = `translate(${left}px, ${top}px)`;
 }
 
 function createLayout(count, settings) {
@@ -1410,7 +1420,7 @@ function resetPreviewZoom() {
 
 function resetPreview() {
   clearTimeout(renderTimer);
-  clearTimeout(buttonMessageTimer);
+  clearTimeout(floatingMessageTimer);
   editableCollage.replaceChildren();
   editableCollage.classList.remove("has-collage");
   emptyState.classList.remove("is-hidden");
