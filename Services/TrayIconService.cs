@@ -36,7 +36,7 @@ public sealed class TrayIconService : IDisposable
         Forms.Application.Run(_context);
     }
 
-    private void OpenApp()
+    public void OpenApp()
     {
         var url = _app.Urls.FirstOrDefault() ?? "http://localhost:5123";
         Process.Start(new ProcessStartInfo

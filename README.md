@@ -6,7 +6,27 @@ Collager 是一款本地运行的图片拼图工具，用来把多张图片快�
 
 ## 启动 Collager
 
-开发或临时使用时，可以在项目目录中运行：
+普通用户可以直接双击已打包文件夹中的程序：
+
+```text
+Collager.exe
+```
+
+双击后 Collager 会静默启动本地服务，不显示命令行窗口；随后打开浏览器页面，并在 Windows 右下角托盘显示快捷入口。可以从托盘菜单再次打开页面或退出程序。
+
+如果你拿到的是源码，可以先在项目目录中打包：
+
+```powershell
+.\scripts\package-windows.ps1
+```
+
+打包完成后运行：
+
+```text
+.\dist\Collager\Collager.exe
+```
+
+开发或临时使用时，也可以保留命令行入口：
 
 ```powershell
 dotnet run --urls http://localhost:5123
@@ -18,27 +38,21 @@ dotnet run --urls http://localhost:5123
 http://localhost:5123
 ```
 
-如果希望后台运行，先编译 Release 版本：
-
-```powershell
-dotnet build -c Release
-```
-
-再用隐藏窗口启动：
+如果希望后台隐藏窗口运行已打包版本：
 
 ```powershell
 Start-Process -WindowStyle Hidden `
-  -FilePath ".\bin\Release\net8.0-windows\Collager.exe" `
-  -ArgumentList "--urls", "http://localhost:5123"
+  -FilePath ".\dist\Collager\Collager.exe" `
+  -ArgumentList "--urls", "http://localhost:5123", "--no-open"
 ```
 
-启动后仍然通过浏览器访问：
+也可以直接给 exe 传入命令行参数：
 
-```text
-http://localhost:5123
+```powershell
+.\dist\Collager\Collager.exe --urls http://localhost:5123
 ```
 
-Collager 会在 Windows 右下角托盘显示快捷入口，可以从托盘菜单打开页面或退出程序。也可以用命令停止后台进程：
+停止后台进程：
 
 ```powershell
 Stop-Process -Name Collager
