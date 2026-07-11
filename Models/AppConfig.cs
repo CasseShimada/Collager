@@ -26,4 +26,6 @@ public sealed class CollageSettingsConfig
     public string Template { get; set; } = "auto";
 
     public double EqualGridRatio { get; set; } = 1;
+
+    public int TargetPageCount { get; set; } = 1;
 }

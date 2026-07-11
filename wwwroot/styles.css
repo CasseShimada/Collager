@@ -170,6 +170,30 @@ p {
   gap: 18px;
 }
 
+.page-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.page-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.page-panel-header strong {
+  color: var(--text);
+}
+
+.page-count-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
 .control-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -478,15 +502,16 @@ a:focus-visible {
   overflow: hidden;
 }
 
-.preview-zoom-controls {
+.preview-toolbar {
   position: sticky;
   top: 0;
   left: 0;
   z-index: 10;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  width: max-content;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
   min-width: 0;
   margin-bottom: 10px;
   padding: 8px;
@@ -494,6 +519,62 @@ a:focus-visible {
   border-radius: 8px;
   background: rgba(255, 255, 255, .92);
   box-shadow: 0 8px 24px rgba(31, 41, 51, .12);
+}
+
+.page-tabs {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.page-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.page-tab:hover,
+.page-tab.is-active {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.page-tab.is-active {
+  background: #fff1f1;
+  font-weight: 700;
+}
+
+.page-tab.is-swap-target {
+  border-color: var(--focus);
+  background: #eef5ff;
+  color: var(--focus);
+}
+
+.page-tab-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.preview-actions,
+.preview-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
 .zoom-button {
@@ -523,6 +604,94 @@ a:focus-visible {
 .zoom-value {
   min-width: 46px;
   padding: 0 8px;
+}
+
+.export-menu {
+  position: relative;
+}
+
+.export-menu-button {
+  min-width: 48px;
+}
+
+.export-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  width: min(280px, calc(100vw - 48px));
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(31, 41, 51, .18);
+}
+
+.export-popover[hidden] {
+  display: none;
+}
+
+.export-popover-header,
+.export-popover-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.export-popover-header span {
+  margin: 0;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--focus);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.export-page-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.export-page-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 6px;
+  border-radius: 6px;
+}
+
+.export-page-option:hover {
+  background: var(--soft);
+}
+
+.export-page-option input {
+  accent-color: var(--accent);
+}
+
+.export-page-option span {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-page-option small {
+  color: var(--muted);
 }
 
 #previewZoomLabel {
@@ -596,6 +765,12 @@ a:focus-visible {
   outline-offset: -4px;
 }
 
+.collage-tile.is-cross-page-target {
+  outline: 2px dashed var(--focus);
+  outline-offset: -4px;
+  cursor: pointer;
+}
+
 .collage-tile img {
   position: absolute;
   top: 0;
@@ -645,11 +820,24 @@ a:focus-visible {
   .preview-stage {
     min-height: 360px;
   }
+
+  .preview-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .preview-actions {
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 470px) {
   .control-grid,
   .mode-group {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .page-count-control {
+    grid-template-columns: 1fr;
   }
 }

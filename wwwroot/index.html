@@ -25,6 +25,20 @@
           </label>
 
           <form class="controls" id="settingsForm">
+            <section class="page-panel" aria-label="分页设置">
+              <div class="page-panel-header">
+                <span>分页</span>
+                <strong id="pageCountLabel">0 页</strong>
+              </div>
+              <div class="page-count-control">
+                <label>
+                  <span>分成页数</span>
+                  <input id="targetPageCountInput" name="targetPageCount" type="number" min="1" max="31" value="1">
+                </label>
+                <button class="secondary-button" id="redistributePagesButton" type="button">重新分页</button>
+              </div>
+            </section>
+
             <section class="template-panel" aria-label="模板选择">
               <div class="template-header">
                 <span>模板</span>
@@ -73,7 +87,7 @@
               <label><input type="radio" name="mode" value="Landscape"><span>横版</span></label>
             </fieldset>
 
-            <button class="primary-button" id="generateButton" type="submit">生成拼图</button>
+            <button class="primary-button" id="generateButton" type="submit">导出当前页</button>
           </form>
 
           <section class="project-panel" aria-label="项目与更新">
@@ -97,11 +111,29 @@
 
         <section class="preview-pane" aria-label="拼图预览">
           <div class="preview-stage" id="previewStage">
-            <div class="preview-zoom-controls" aria-label="预览缩放">
-              <button class="zoom-button" id="previewZoomOut" type="button" title="缩小预览" aria-label="缩小预览">-</button>
-              <button class="zoom-button zoom-value" id="previewZoomFit" type="button" title="适合窗口" aria-label="适合窗口">适合</button>
-              <button class="zoom-button" id="previewZoomIn" type="button" title="放大预览" aria-label="放大预览">+</button>
-              <span id="previewZoomLabel">--</span>
+            <div class="preview-toolbar" aria-label="页面与预览控制">
+              <div class="page-tabs" id="pageTabs" aria-label="页面切换"></div>
+              <div class="preview-actions">
+                <div class="export-menu">
+                  <button class="zoom-button export-menu-button" id="exportMenuButton" type="button" title="选择导出页面" aria-label="选择导出页面">导出</button>
+                  <div class="export-popover" id="exportPopover" hidden>
+                    <div class="export-popover-header">
+                      <span>导出页面</span>
+                      <button class="text-button" id="exportAllButton" type="button">全部导出</button>
+                    </div>
+                    <div class="export-page-list" id="exportPageList"></div>
+                    <div class="export-popover-actions">
+                      <button class="secondary-button" id="exportSelectedButton" type="button">导出所选</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="preview-zoom-controls" aria-label="预览缩放">
+                  <button class="zoom-button" id="previewZoomOut" type="button" title="缩小预览" aria-label="缩小预览">-</button>
+                  <button class="zoom-button zoom-value" id="previewZoomFit" type="button" title="适合窗口" aria-label="适合窗口">适合</button>
+                  <button class="zoom-button" id="previewZoomIn" type="button" title="放大预览" aria-label="放大预览">+</button>
+                  <span id="previewZoomLabel">--</span>
+                </div>
+              </div>
             </div>
             <div class="empty-state" id="emptyState">
               <p>图片会在这里预览</p>

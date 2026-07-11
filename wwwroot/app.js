@@ -9,7 +9,16 @@ const templateInput = document.querySelector("#templateInput");
 const templateCountLabel = document.querySelector("#templateCountLabel");
 const equalGridControl = document.querySelector("#equalGridControl");
 const equalGridRatioValue = document.querySelector("#equalGridRatioValue");
+const targetPageCountInput = document.querySelector("#targetPageCountInput");
+const pageCountLabel = document.querySelector("#pageCountLabel");
+const redistributePagesButton = document.querySelector("#redistributePagesButton");
 const previewStage = document.querySelector("#previewStage");
+const pageTabs = document.querySelector("#pageTabs");
+const exportMenuButton = document.querySelector("#exportMenuButton");
+const exportPopover = document.querySelector("#exportPopover");
+const exportPageList = document.querySelector("#exportPageList");
+const exportAllButton = document.querySelector("#exportAllButton");
+const exportSelectedButton = document.querySelector("#exportSelectedButton");
 const previewZoomOut = document.querySelector("#previewZoomOut");
 const previewZoomFit = document.querySelector("#previewZoomFit");
 const previewZoomIn = document.querySelector("#previewZoomIn");
@@ -32,12 +41,15 @@ let templates = {};
 let templateDirectory = '';
 
 let selectedFiles = [];
+let pages = [];
+let currentPageIndex = 0;
 let currentLayout = [];
 let previewZoom = 1;
 let fitPreviewZoom = 1;
 let isPreviewZoomManual = true;
 let hasRenderedPreview = false;
 let dragState = null;
+let pendingCrossPageSwap = null;
 let previewPanState = null;
 let renderTimer = null;
 let floatingMessageTimer = null;
@@ -83,9 +95,21 @@ settingsForm.addEventListener("submit", async event => {
 
 settingsForm.addEventListener("input", event => {
   if (["width", "height", "gap", "padding", "radius", "background", "equalGridRatio"].includes(event.target.name)) {
+    if (event.target.name === "equalGridRatio") {
+      const page = getCurrentPage();
+      if (page) {
+        page.equalGridRatio = readNumber(new FormData(settingsForm), "equalGridRatio", 1);
+      }
+    }
+
     updateEqualGridControl();
     scheduleConfigSave();
     schedulePreviewRender();
+  }
+
+  if (event.target.name === "targetPageCount") {
+    scheduleConfigSave();
+    updatePageControls();
   }
 });
 
@@ -99,6 +123,11 @@ settingsForm.addEventListener("change", event => {
     scheduleConfigSave();
     schedulePreviewRender();
   }
+
+  if (event.target.name === "targetPageCount") {
+    redistributePages();
+    scheduleConfigSave();
+  }
 });
 
 window.addEventListener("resize", schedulePreviewRender);
@@ -109,11 +138,36 @@ previewStage.addEventListener("pointerdown", beginPreviewPan);
 previewZoomOut.addEventListener("click", () => stepPreviewZoom(-1));
 previewZoomIn.addEventListener("click", () => stepPreviewZoom(1));
 previewZoomFit.addEventListener("click", fitPreviewToStage);
+redistributePagesButton.addEventListener("click", () => {
+  redistributePages();
+  scheduleConfigSave();
+});
+exportMenuButton.addEventListener("click", event => {
+  event.stopPropagation();
+  toggleExportPopover();
+});
+exportAllButton.addEventListener("click", async () => {
+  exportPopover.hidden = true;
+  await exportPages(pages.map((_, index) => index));
+});
+exportSelectedButton.addEventListener("click", async () => {
+  const indexes = [...exportPageList.querySelectorAll("input:checked")]
+    .map(input => Number(input.value))
+    .filter(index => Number.isInteger(index) && pages[index]);
+  exportPopover.hidden = true;
+  await exportPages(indexes);
+});
 installUpdateButton.addEventListener("click", installUpdate);
+document.addEventListener("click", event => {
+  if (!event.target.closest(".export-menu")) {
+    exportPopover.hidden = true;
+  }
+});
 
 async function initializeApp() {
   await loadConfig();
   await loadTemplates();
+  updatePageControls();
   renderTemplates();
   checkForUpdates();
 }
@@ -201,6 +255,7 @@ function applySavedSettings(settings) {
   settingsForm.elements.radius.value = String(settings.radius ?? 18);
   settingsForm.elements.background.value = settings.background || "#ffffff";
   settingsForm.elements.equalGridRatio.value = String(settings.equalGridRatio ?? 1);
+  settingsForm.elements.targetPageCount.value = String(settings.targetPageCount ?? 1);
   templateInput.value = settings.template || "auto";
 
   const mode = settings.mode || "Portrait";
@@ -249,7 +304,8 @@ function readSettingsConfig() {
     background: formData.get("background") || "#ffffff",
     mode: formData.get("mode") || "Portrait",
     template: templateInput.value || "auto",
-    equalGridRatio: readNumber(formData, "equalGridRatio", 1)
+    equalGridRatio: readNumber(formData, "equalGridRatio", 1),
+    targetPageCount: readNumber(formData, "targetPageCount", 1)
   };
 }
 
@@ -331,6 +387,7 @@ function addFiles(files) {
   }
 
   selectedFiles = [...selectedFiles, ...additions];
+  appendItemsToPages(additions);
   updateSelectionState(skippedDuplicates);
 }
 
@@ -358,31 +415,152 @@ function createFileKey(file) {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
+function createPage(items = [], templateId = "auto", equalGridRatio = 1) {
+  return {
+    items,
+    templateId,
+    equalGridRatio
+  };
+}
+
+function appendItemsToPages(items) {
+  const hadPages = pages.length > 0;
+
+  if (!hadPages && items.length > 0) {
+    currentPageIndex = 0;
+  }
+
+  redistributePages({ silent: true });
+}
+
+function redistributePages(options = {}) {
+  pendingCrossPageSwap = null;
+  if (selectedFiles.length === 0) {
+    pages = [];
+    currentPageIndex = 0;
+    updateSelectionState();
+    return;
+  }
+
+  const previousPages = pages;
+  const targetPageCount = getTargetPageCount();
+  const pageGroups = splitIntoPageGroups(selectedFiles, targetPageCount);
+  pages = [];
+
+  pageGroups.forEach(pageItems => {
+    const previousPage = previousPages[pages.length];
+    pages.push(createPage(
+      pageItems,
+      getValidTemplateId(previousPage?.templateId || "auto", pageItems.length),
+      previousPage?.equalGridRatio || 1
+    ));
+  });
+
+  currentPageIndex = clamp(currentPageIndex, 0, Math.max(0, pages.length - 1));
+  syncCurrentPageControls();
+  updateSelectionState();
+  if (!options.silent) {
+    showFloatingMessage(`已分成 ${pages.length} 页`);
+  }
+}
+
+function normalizePages() {
+  pages = pages.filter(page => page.items.length > 0);
+  currentPageIndex = clamp(currentPageIndex, 0, Math.max(0, pages.length - 1));
+  syncCurrentPageControls();
+}
+
+function getCurrentPage() {
+  return pages[currentPageIndex] || null;
+}
+
+function getCurrentPageFiles() {
+  return getCurrentPage()?.items || [];
+}
+
+function getCurrentPageCount() {
+  return getCurrentPageFiles().length;
+}
+
+function splitIntoPageGroups(items, targetPageCount) {
+  const pageCount = Math.min(items.length, targetPageCount);
+  const groups = [];
+  let start = 0;
+
+  for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+    const remainingItems = items.length - start;
+    const remainingPages = pageCount - pageIndex;
+    const groupSize = Math.ceil(remainingItems / remainingPages);
+    groups.push(items.slice(start, start + groupSize));
+    start += groupSize;
+  }
+
+  return groups;
+}
+
+function getTargetPageCount() {
+  const value = Number(targetPageCountInput.value);
+  const maxPages = Math.max(1, Math.min(31, selectedFiles.length || 31));
+  const pageCount = Math.max(1, Math.min(maxPages, Number.isFinite(value) ? Math.round(value) : 1));
+  targetPageCountInput.max = String(maxPages);
+  targetPageCountInput.value = String(pageCount);
+  return pageCount;
+}
+
+function syncCurrentPageControls() {
+  const page = getCurrentPage();
+  templateInput.value = getValidTemplateId(page?.templateId || "auto", page?.items.length || 0);
+  if (page) {
+    page.templateId = templateInput.value;
+    settingsForm.elements.equalGridRatio.value = String(page.equalGridRatio || 1);
+  }
+}
+
+function getValidTemplateId(templateId, count) {
+  if (templateId === "auto" || templateId === "equal-grid") {
+    return templateId;
+  }
+
+  return getTemplatesForCount(count).some(item => item.id === templateId) ? templateId : "auto";
+}
+
 function clearFiles() {
   selectedFiles.forEach(item => URL.revokeObjectURL(item.previewUrl));
   selectedFiles = [];
+  pages = [];
+  currentPageIndex = 0;
+  pendingCrossPageSwap = null;
   resetPreviewZoom();
   hasRenderedPreview = false;
   updateSelectionState();
 }
 
 function removeFile(index) {
-  const item = selectedFiles[index];
+  const currentFiles = getCurrentPageFiles();
+  const item = currentFiles[index];
   if (!item) {
     return;
   }
 
   URL.revokeObjectURL(item.previewUrl);
-  selectedFiles.splice(index, 1);
+  const globalIndex = selectedFiles.indexOf(item);
+  if (globalIndex >= 0) {
+    selectedFiles.splice(globalIndex, 1);
+  }
+
+  currentFiles.splice(index, 1);
+  normalizePages();
   updateSelectionState();
 }
 
 function updateSelectionState(skippedDuplicates = 0) {
-  const shouldFitInitialPreview = !hasRenderedPreview && selectedFiles.length > 0;
+  normalizePages();
+  updatePageControls();
+  const shouldFitInitialPreview = !hasRenderedPreview && getCurrentPageCount() > 0;
   renderTemplates();
   updateSelectionStatus(skippedDuplicates);
 
-  if (selectedFiles.length === 0) {
+  if (getCurrentPageCount() === 0) {
     resetPreview();
     return;
   }
@@ -394,6 +572,164 @@ function updateSelectionState(skippedDuplicates = 0) {
   }
 }
 
+function updatePageControls() {
+  const pageCount = pages.length;
+  pageCountLabel.textContent = `${pageCount} 页`;
+  redistributePagesButton.disabled = selectedFiles.length === 0;
+  exportMenuButton.disabled = pageCount === 0;
+  exportSelectedButton.disabled = pageCount === 0;
+  exportAllButton.disabled = pageCount === 0;
+  renderPageTabs();
+  renderExportPageList();
+}
+
+function renderPageTabs() {
+  pageTabs.replaceChildren();
+
+  if (pages.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "page-tab page-tab-empty";
+    empty.textContent = "无页面";
+    pageTabs.appendChild(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  pages.forEach((page, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = index === currentPageIndex ? "page-tab is-active" : "page-tab";
+    button.dataset.pageIndex = String(index);
+    button.setAttribute("aria-label", `第 ${index + 1} 页`);
+    button.append(`第 ${index + 1} 页`);
+
+    const count = document.createElement("span");
+    count.className = "page-tab-count";
+    count.textContent = `${page.items.length} 张`;
+    button.appendChild(count);
+
+    button.addEventListener("click", () => switchPage(index));
+    fragment.appendChild(button);
+  });
+
+  pageTabs.appendChild(fragment);
+}
+
+function renderExportPageList() {
+  exportPageList.replaceChildren();
+
+  if (pages.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "template-empty";
+    empty.textContent = "暂无可导出页面。";
+    exportPageList.appendChild(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  pages.forEach((page, index) => {
+    const label = document.createElement("label");
+    label.className = "export-page-option";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = String(index);
+    checkbox.checked = index === currentPageIndex;
+
+    const title = document.createElement("span");
+    title.textContent = `第 ${index + 1} 页`;
+
+    const count = document.createElement("small");
+    count.textContent = `${page.items.length} 张`;
+
+    label.appendChild(checkbox);
+    label.appendChild(title);
+    label.appendChild(count);
+    fragment.appendChild(label);
+  });
+
+  exportPageList.appendChild(fragment);
+}
+
+function switchPage(index) {
+  if (!pages[index] || index === currentPageIndex) {
+    return;
+  }
+
+  currentPageIndex = index;
+  if (pendingCrossPageSwap && index === pendingCrossPageSwap.sourcePageIndex) {
+    pendingCrossPageSwap = null;
+  }
+  syncCurrentPageControls();
+  resetPreviewZoom();
+  hasRenderedPreview = false;
+  updateSelectionState();
+}
+
+function beginCrossPageSwap(sourcePageIndex, sourceItemIndex, targetPageIndex) {
+  const sourcePage = pages[sourcePageIndex];
+  if (!sourcePage || !pages[targetPageIndex] || sourcePageIndex === targetPageIndex) {
+    return false;
+  }
+
+  const sourceItem = sourcePage.items[sourceItemIndex];
+  if (!sourceItem) {
+    return false;
+  }
+
+  sourceItem.offsetX = dragState?.offsetX ?? sourceItem.offsetX;
+  sourceItem.offsetY = dragState?.offsetY ?? sourceItem.offsetY;
+  sourceItem.scale = dragState?.scale ?? sourceItem.scale;
+  pendingCrossPageSwap = {
+    sourcePageIndex,
+    sourceItemIndex,
+    sourceItem
+  };
+  switchPage(targetPageIndex);
+  showFloatingMessage("点击目标图片完成跨页交换");
+  return true;
+}
+
+function completePendingCrossPageSwap(targetItemIndex, event) {
+  if (!pendingCrossPageSwap) {
+    return false;
+  }
+
+  const { sourcePageIndex, sourceItemIndex, sourceItem } = pendingCrossPageSwap;
+  const sourcePage = pages[sourcePageIndex];
+  const targetPage = getCurrentPage();
+  const targetItem = targetPage?.items[targetItemIndex];
+
+  if (!sourcePage || !targetPage || !sourceItem || !targetItem) {
+    pendingCrossPageSwap = null;
+    updateSelectionState();
+    return false;
+  }
+
+  sourcePage.items[sourceItemIndex] = targetItem;
+  targetPage.items[targetItemIndex] = sourceItem;
+  syncGlobalFileOrder();
+  pendingCrossPageSwap = null;
+  renderEditablePreview();
+  updatePageControls();
+  showFloatingMessage("已跨页交换图片", event);
+  return true;
+}
+
+function syncGlobalFileOrder() {
+  selectedFiles = pages.flatMap(page => page.items);
+}
+
+function toggleExportPopover() {
+  if (pages.length === 0) {
+    showFloatingMessage("请先选择图片");
+    return;
+  }
+
+  renderExportPageList();
+  exportPopover.hidden = !exportPopover.hidden;
+}
+
 function updateSelectionStatus(skippedDuplicates = 0) {
   if (skippedDuplicates > 0) {
     showFloatingMessage(`跳过 ${skippedDuplicates} 张重复图片`);
@@ -403,8 +739,9 @@ function updateSelectionStatus(skippedDuplicates = 0) {
 function renderTemplates() {
   templateGrid.replaceChildren();
   const templateItems = getTemplatesForCurrentCount();
+  const currentFiles = getCurrentPageFiles();
 
-  if (selectedFiles.length === 0) {
+  if (currentFiles.length === 0) {
     templateInput.value = "auto";
     templateCountLabel.textContent = "自动";
     updateEqualGridControl();
@@ -420,7 +757,11 @@ function renderTemplates() {
   const fragment = document.createDocumentFragment();
   const activeStillVisible = items.some(item => item.id === templateInput.value);
   templateInput.value = activeStillVisible ? templateInput.value : "auto";
-  templateCountLabel.textContent = `${selectedFiles.length} 张`;
+  const page = getCurrentPage();
+  if (page) {
+    page.templateId = templateInput.value;
+  }
+  templateCountLabel.textContent = `第 ${currentPageIndex + 1} 页 · ${currentFiles.length} 张`;
 
   items.forEach(item => {
     const button = document.createElement("button");
@@ -432,6 +773,10 @@ function renderTemplates() {
 
     button.addEventListener("click", () => {
       templateInput.value = item.id;
+      const currentPage = getCurrentPage();
+      if (currentPage) {
+        currentPage.templateId = item.id;
+      }
       resetPlacements();
       renderTemplates();
       scheduleConfigSave();
@@ -480,27 +825,28 @@ function createTemplatePreview(item) {
 }
 
 async function generateCollage() {
-  if (selectedFiles.length === 0) {
+  if (getCurrentPageCount() === 0) {
     showFloatingMessage("请先选择图片");
     return;
   }
 
   renderTemplates();
   renderEditablePreview();
-  await exportAndDownload();
+  await exportPages([currentPageIndex]);
 }
 
 function renderEditablePreview(options = {}) {
   const preserveViewport = options.preserveViewport !== false;
   const previousViewport = preserveViewport ? capturePreviewViewport() : null;
   const settings = getSettings();
-  const layout = createLayout(selectedFiles.length, settings);
+  const currentFiles = getCurrentPageFiles();
+  const layout = createLayout(currentFiles.length, settings, currentFiles);
 
-  emptyState.classList.toggle("is-hidden", selectedFiles.length > 0);
-  editableCollage.classList.toggle("has-collage", selectedFiles.length > 0);
+  emptyState.classList.toggle("is-hidden", currentFiles.length > 0);
+  editableCollage.classList.toggle("has-collage", currentFiles.length > 0);
   editableCollage.replaceChildren();
 
-  if (selectedFiles.length === 0) {
+  if (currentFiles.length === 0) {
     hasRenderedPreview = false;
     return;
   }
@@ -516,11 +862,11 @@ function renderEditablePreview(options = {}) {
     height: rect.height * scale
   }));
 
-  selectedFiles.forEach((item, index) => {
+  currentFiles.forEach((item, index) => {
     const rect = layout[index];
     const displayRect = currentLayout[index];
     const tile = document.createElement("div");
-    tile.className = "collage-tile";
+    tile.className = pendingCrossPageSwap ? "collage-tile is-cross-page-target" : "collage-tile";
     tile.dataset.index = index;
     tile.style.left = `${displayRect.x}px`;
     tile.style.top = `${displayRect.y}px`;
@@ -593,7 +939,7 @@ function stepPreviewZoom(direction) {
 }
 
 function fitPreviewToStage() {
-  if (selectedFiles.length === 0) {
+  if (getCurrentPageCount() === 0) {
     return;
   }
 
@@ -608,7 +954,7 @@ function fitPreviewToStage() {
 }
 
 function setPreviewZoom(nextZoom, clientX, clientY) {
-  if (selectedFiles.length === 0) {
+  if (getCurrentPageCount() === 0) {
     return;
   }
 
@@ -664,14 +1010,15 @@ function getStageCenter() {
 }
 
 function updatePreviewZoomControls() {
-  previewZoomLabel.textContent = selectedFiles.length ? `${Math.round(previewZoom * 100)}%` : "--";
-  previewZoomOut.disabled = selectedFiles.length === 0 || previewZoom <= minPreviewZoom + 0.005;
-  previewZoomIn.disabled = selectedFiles.length === 0 || previewZoom >= maxPreviewZoom - 0.005;
-  previewZoomFit.disabled = selectedFiles.length === 0 || !isPreviewZoomManual;
+  const hasPage = getCurrentPageCount() > 0;
+  previewZoomLabel.textContent = hasPage ? `${Math.round(previewZoom * 100)}%` : "--";
+  previewZoomOut.disabled = !hasPage || previewZoom <= minPreviewZoom + 0.005;
+  previewZoomIn.disabled = !hasPage || previewZoom >= maxPreviewZoom - 0.005;
+  previewZoomFit.disabled = !hasPage || !isPreviewZoomManual;
 }
 
 function beginPreviewPan(event) {
-  if (event.button !== 0 || selectedFiles.length === 0 || dragState) {
+  if (event.button !== 0 || getCurrentPageCount() === 0 || dragState) {
     return;
   }
 
@@ -778,6 +1125,14 @@ function createEqualGridTemplatePreview() {
 }
 
 function beginTileDrag(event, index) {
+  if (pendingCrossPageSwap) {
+    if (completePendingCrossPageSwap(index, event)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    return;
+  }
+
   if (event.button !== 0) {
     return;
   }
@@ -791,12 +1146,13 @@ function beginTileDrag(event, index) {
     startY: event.clientY,
     lastX: event.clientX,
     lastY: event.clientY,
+    sourcePageIndex: currentPageIndex,
     moved: false,
     swapMode: false,
     longPressTimer: window.setTimeout(() => enterSwapMode(tile), longPressMs),
-    offsetX: selectedFiles[index].offsetX,
-    offsetY: selectedFiles[index].offsetY,
-    scale: selectedFiles[index].scale || 1
+    offsetX: getCurrentPageFiles()[index].offsetX,
+    offsetY: getCurrentPageFiles()[index].offsetY,
+    scale: getCurrentPageFiles()[index].scale || 1
   };
 
   tile.classList.add("is-dragging");
@@ -828,7 +1184,7 @@ function moveTileDrag(event) {
     return;
   }
 
-  const item = selectedFiles[dragState.index];
+  const item = getCurrentPageFiles()[dragState.index];
   const rect = currentLayout[dragState.index];
   const image = event.currentTarget.querySelector("img");
   const crop = getCropMetrics(image, rect, item.scale || 1);
@@ -846,13 +1202,17 @@ function endTileDrag(event) {
   const sourceIndex = dragState.index;
   clearTimeout(dragState.longPressTimer);
   const targetIndex = getTileIndexAt(event.clientX, event.clientY, sourceIndex);
+  const targetPageIndex = getPageTabIndexAt(event.clientX, event.clientY);
   const wasSwapMode = dragState.swapMode;
   cleanupDragListeners(event.currentTarget);
 
-  if (wasSwapMode && Number.isInteger(targetIndex) && targetIndex !== sourceIndex) {
-    selectedFiles[sourceIndex].offsetX = dragState.offsetX;
-    selectedFiles[sourceIndex].offsetY = dragState.offsetY;
-    selectedFiles[sourceIndex].scale = dragState.scale;
+  if (wasSwapMode && Number.isInteger(targetPageIndex) && targetPageIndex !== dragState.sourcePageIndex) {
+    beginCrossPageSwap(dragState.sourcePageIndex, sourceIndex, targetPageIndex);
+  } else if (wasSwapMode && Number.isInteger(targetIndex) && targetIndex !== sourceIndex) {
+    const currentFiles = getCurrentPageFiles();
+    currentFiles[sourceIndex].offsetX = dragState.offsetX;
+    currentFiles[sourceIndex].offsetY = dragState.offsetY;
+    currentFiles[sourceIndex].scale = dragState.scale;
     swapFiles(sourceIndex, targetIndex);
     renderEditablePreview();
     showFloatingMessage("已交换图片", event);
@@ -877,15 +1237,25 @@ function cleanupDragListeners(tile) {
   tile.classList.remove("is-dragging");
   tile.classList.remove("is-swap-source");
   clearSwapHover();
+  clearPageSwapHover();
   tile.removeEventListener("pointermove", moveTileDrag);
   tile.removeEventListener("pointerup", endTileDrag);
   tile.removeEventListener("pointercancel", cancelTileDrag);
 }
 
 function swapFiles(sourceIndex, targetIndex) {
-  const source = selectedFiles[sourceIndex];
-  selectedFiles[sourceIndex] = selectedFiles[targetIndex];
-  selectedFiles[targetIndex] = source;
+  const currentFiles = getCurrentPageFiles();
+  const source = currentFiles[sourceIndex];
+  const target = currentFiles[targetIndex];
+  currentFiles[sourceIndex] = target;
+  currentFiles[targetIndex] = source;
+
+  const globalSourceIndex = selectedFiles.indexOf(source);
+  const globalTargetIndex = selectedFiles.indexOf(target);
+  if (globalSourceIndex >= 0 && globalTargetIndex >= 0) {
+    selectedFiles[globalSourceIndex] = target;
+    selectedFiles[globalTargetIndex] = source;
+  }
 }
 
 function enterSwapMode(tile) {
@@ -901,10 +1271,16 @@ function enterSwapMode(tile) {
 
 function updateSwapHover(clientX, clientY, sourceIndex) {
   clearSwapHover();
+  clearPageSwapHover();
   const targetIndex = getTileIndexAt(clientX, clientY, sourceIndex);
   if (Number.isInteger(targetIndex) && targetIndex !== sourceIndex) {
     const target = editableCollage.querySelector(`.collage-tile[data-index="${targetIndex}"]`);
     target?.classList.add("is-swap-target");
+  }
+
+  const targetPageIndex = getPageTabIndexAt(clientX, clientY);
+  if (Number.isInteger(targetPageIndex) && targetPageIndex !== dragState?.sourcePageIndex) {
+    pageTabs.querySelector(`.page-tab[data-page-index="${targetPageIndex}"]`)?.classList.add("is-swap-target");
   }
 }
 
@@ -914,9 +1290,28 @@ function clearSwapHover() {
   });
 }
 
+function clearPageSwapHover() {
+  pageTabs.querySelectorAll(".is-swap-target").forEach(tab => {
+    tab.classList.remove("is-swap-target");
+  });
+}
+
 function getTileIndexAt(clientX, clientY, fallbackIndex) {
   const targetTile = document.elementFromPoint(clientX, clientY)?.closest(".collage-tile");
   return targetTile ? Number(targetTile.dataset.index) : fallbackIndex;
+}
+
+function getPageTabIndexAt(clientX, clientY) {
+  const targetTab = [...pageTabs.querySelectorAll(".page-tab[data-page-index]")]
+    .find(tab => {
+      const rect = tab.getBoundingClientRect();
+      return clientX >= rect.left
+        && clientX <= rect.right
+        && clientY >= rect.top
+        && clientY <= rect.bottom;
+    });
+
+  return targetTab ? Number(targetTab.dataset.pageIndex) : null;
 }
 
 function zoomTileImage(event, index) {
@@ -926,7 +1321,7 @@ function zoomTileImage(event, index) {
 
   event.preventDefault();
   event.stopPropagation();
-  const item = selectedFiles[index];
+  const item = getCurrentPageFiles()[index];
   const rect = currentLayout[index];
   const tile = event.currentTarget;
   const image = tile.querySelector("img");
@@ -981,7 +1376,7 @@ function getCropMetrics(image, rect, scale) {
 }
 
 function schedulePreviewRender() {
-  if (selectedFiles.length === 0) {
+  if (getCurrentPageCount() === 0) {
     return;
   }
 
@@ -991,16 +1386,47 @@ function schedulePreviewRender() {
   }, 120);
 }
 
-async function exportAndDownload() {
-  if (selectedFiles.length === 0) {
+async function exportPages(pageIndexes) {
+  const indexes = [...new Set(pageIndexes)]
+    .filter(index => Number.isInteger(index) && pages[index] && pages[index].items.length > 0);
+
+  if (indexes.length === 0) {
+    showFloatingMessage("请选择要导出的页面");
     return;
   }
 
   generateButton.disabled = true;
-  generateButton.textContent = "生成中...";
+  exportMenuButton.disabled = true;
+  generateButton.textContent = indexes.length > 1 ? "导出中..." : "生成中...";
 
+  try {
+    for (let exportIndex = 0; exportIndex < indexes.length; exportIndex += 1) {
+      const pageIndex = indexes[exportIndex];
+      const blob = await requestCollageBlob(pages[pageIndex]);
+      downloadBlob(blob, pageIndex, indexes.length > 1);
+      generateButton.textContent = `导出 ${exportIndex + 1}/${indexes.length}`;
+    }
+
+    showFloatingMessage(indexes.length > 1 ? `已开始下载 ${indexes.length} 页` : "已开始下载");
+  } catch (error) {
+    showFloatingMessage("生成失败");
+    console.error(error.message === "Failed to fetch"
+      ? "图片数据较大或服务暂时不可用，请稍后重试。"
+      : error.message);
+  } finally {
+    generateButton.disabled = false;
+    exportMenuButton.disabled = pages.length === 0;
+    generateButton.textContent = "导出当前页";
+  }
+}
+
+async function requestCollageBlob(page) {
   const formData = new FormData(settingsForm);
-  const templateItem = getSelectedTemplate();
+  const templateId = getValidTemplateId(page.templateId || "auto", page.items.length);
+  const templateItem = getTemplateById(templateId, page.items.length);
+  formData.set("template", templateId);
+  formData.set("equalGridRatio", String(page.equalGridRatio || readNumber(formData, "equalGridRatio", 1)));
+
   if (templateItem) {
     formData.set("templateColumns", String(templateItem.columns || 6));
     formData.set("templateRows", String(templateItem.rows || 6));
@@ -1010,45 +1436,38 @@ async function exportAndDownload() {
       columnSpan: cell[2],
       rowSpan: cell[3]
     }))));
+  } else {
+    formData.delete("templateColumns");
+    formData.delete("templateRows");
+    formData.delete("templateCells");
   }
 
-  formData.set("placements", JSON.stringify(selectedFiles.map(item => ({
+  formData.set("placements", JSON.stringify(page.items.map(item => ({
     offsetX: item.offsetX,
     offsetY: item.offsetY,
     scale: item.scale || 1
   }))));
-  selectedFiles.forEach(item => formData.append("images", item.file));
+  page.items.forEach(item => formData.append("images", item.file));
 
-  try {
-    const response = await fetch("/api/collage", {
-      method: "POST",
-      body: formData
-    });
+  const response = await fetch("/api/collage", {
+    method: "POST",
+    body: formData
+  });
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: "生成失败，请检查图片格式。" }));
-      throw new Error(payload.error || "生成失败，请检查图片格式。");
-    }
-
-    const blob = await response.blob();
-    downloadBlob(blob);
-    showFloatingMessage("已开始下载");
-  } catch (error) {
-    showFloatingMessage("生成失败");
-    console.error(error.message === "Failed to fetch"
-      ? "图片数据较大或服务暂时不可用，请稍后重试。"
-      : error.message);
-  } finally {
-    generateButton.disabled = false;
-    generateButton.textContent = "生成拼图";
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ error: "生成失败，请检查图片格式。" }));
+    throw new Error(payload.error || "生成失败，请检查图片格式。");
   }
+
+  return response.blob();
 }
 
-function downloadBlob(blob) {
+function downloadBlob(blob, pageIndex = currentPageIndex, includePageNumber = false) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${createLocalDateTimeFileName()}.png`;
+  const pageSuffix = includePageNumber ? `-page-${String(pageIndex + 1).padStart(2, "0")}` : "";
+  link.download = `${createLocalDateTimeFileName()}${pageSuffix}.png`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -1112,7 +1531,7 @@ function moveFloatingMessage(x, y) {
   bubble.style.transform = `translate(${left}px, ${top}px)`;
 }
 
-function createLayout(count, settings) {
+function createLayout(count, settings, items = getCurrentPageFiles()) {
   if (isEqualGridTemplate(templateInput.value)) {
     return createEqualGridLayout(count, settings);
   }
@@ -1124,7 +1543,7 @@ function createLayout(count, settings) {
     }
   }
 
-  return createAutoGridLayout(count, settings);
+  return createAutoGridLayout(count, settings, items);
 }
 
 function createEqualGridLayout(count, settings) {
@@ -1215,9 +1634,9 @@ function createTemplateLayout(item, settings) {
   }));
 }
 
-function createAutoGridLayout(count, settings) {
+function createAutoGridLayout(count, settings, items = getCurrentPageFiles()) {
   const content = getContentBounds(settings);
-  const aspects = selectedFiles.slice(0, count).map(item => clampAspect(item.aspect || 1));
+  const aspects = items.slice(0, count).map(item => clampAspect(item.aspect || 1));
   const rows = createAspectRows(aspects, content, settings);
   const totalGapHeight = settings.gap * Math.max(0, rows.length - 1);
   const availableHeight = Math.max(1, content.height - totalGapHeight);
@@ -1332,7 +1751,11 @@ function getNaturalRowHeight(row, contentWidth, gap) {
 }
 
 function getSelectedTemplate() {
-  return getTemplatesForCurrentCount().find(item => item.id === templateInput.value) || null;
+  return getTemplateById(templateInput.value, getCurrentPageCount());
+}
+
+function getTemplateById(templateId, count) {
+  return getTemplatesForCount(count).find(item => item.id === templateId) || null;
 }
 
 function isEqualGridTemplate(templateId) {
@@ -1340,7 +1763,7 @@ function isEqualGridTemplate(templateId) {
 }
 
 function updateEqualGridControl() {
-  const isVisible = selectedFiles.length > 0 && isEqualGridTemplate(templateInput.value);
+  const isVisible = getCurrentPageCount() > 0 && isEqualGridTemplate(templateInput.value);
   equalGridControl.classList.toggle("is-hidden", !isVisible);
   equalGridRatioValue.textContent = formatRatio(readNumber(new FormData(settingsForm), "equalGridRatio", 1));
 }
@@ -1359,7 +1782,11 @@ function formatRatio(value) {
 }
 
 function getTemplatesForCurrentCount() {
-  return templates[selectedFiles.length] || [];
+  return getTemplatesForCount(getCurrentPageCount());
+}
+
+function getTemplatesForCount(count) {
+  return templates[count] || [];
 }
 
 function clampAspect(aspect) {
@@ -1405,7 +1832,7 @@ function applyCanvasMode(mode) {
 }
 
 function resetPlacements() {
-  selectedFiles.forEach(item => {
+  getCurrentPageFiles().forEach(item => {
     item.offsetX = 0;
     item.offsetY = 0;
     item.scale = 1;
@@ -1425,7 +1852,7 @@ function resetPreview() {
   editableCollage.classList.remove("has-collage");
   emptyState.classList.remove("is-hidden");
   generateButton.disabled = false;
-  generateButton.textContent = "生成拼图";
+  generateButton.textContent = "导出当前页";
 }
 
 function clamp(value, min, max) {
